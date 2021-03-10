@@ -126,6 +126,20 @@ streetrx %>% filter(state == 'USA')
 City is missing, region is missing - we don't have any location information on these observations: drop
 
 ```{r}
-streetrx <- streetrx %>% filter(state != 'USA')
+streetrx <- streetrx %>% filter(state != 'USA') %>% droplevels()
 ```
 
+## USA region
+
+```{r}
+table(streetrx$USA_region)
+```
+
+Let's visualize the estimated density for these 4 groups. For visualization purposes, we omit ppm greater than 10 (which is largely the entire data anyawy)
+
+```{r}
+small_ppm <- streetrx %>% filter(ppm < 10)
+ggplot(small_ppm, aes(x=ppm, color=USA_region)) + geom_density(bw=0.5)
+```
+
+They all look pretty similar actually *except* for South, which seems to be higher priced than the other on average
