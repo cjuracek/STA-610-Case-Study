@@ -142,4 +142,28 @@ small_ppm <- streetrx %>% filter(ppm < 10)
 ggplot(small_ppm, aes(x=ppm, color=USA_region)) + geom_density(bw=0.5)
 ```
 
-They all look pretty similar actually *except* for South, which seems to be higher priced than the other on average
+They all look pretty similar actually *except* for South, which seems to be higher priced than the other on average.
+
+## Source
+
+Only 18 levels - let's check the table output:
+
+```{r}
+table(streetrx$source)
+```
+
+Let's recode some of these:
+
+```{r}
+# Recode "missing" values to NA
+levels(streetrx$source)[levels(streetrx$source) == ''] <- NA_character_
+streetrx$source <- recode_factor(streetrx$source, 'w'=NA_character_,
+                                 'Idk'=NA_character_)
+
+levels(streetrx$source)[grepl('bluelight', levels(streetrx$source), fixed=TRUE)] <- 'bluelight'
+levels(streetrx$source)[grepl('opiophile', levels(streetrx$source), fixed=TRUE)] <- 'opiophile'
+```
+
+There's still work to be done on this one. Ultimately about 1/3 of these values are missing - we might not be able to save it from that.
+
+
