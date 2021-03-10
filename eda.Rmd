@@ -3,16 +3,76 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+# Todo
+
+- Check for missing data across columns (including response), as well as alternate ways data might be NA
+- Perform EDA to sanity check values, check types, etc.
+
+# Changes to data
+
+- Filtered data such that `api_temp = oxymorphone`
+- Dropped `country` and `api_temp`
+- Removed observations with missing `ppm` (14)
+
 ```{r include=FALSE}
 knitr::opts_chunk$set('echo'=FALSE)
 
 library(dplyr)
 library(ggplot2)
+library(lubridate)
 
 load('streetrx.rdata')
+streetrx <- streetrx %>% filter(api_temp == 'oxymorphone')
+
+# Only 1 country (USA), and we're only working with 
+drop_cols <- c('country', 'api_temp')
+streetrx <- streetrx %>% select(-any_of(drop_cols))
 ```
 
 ```{r}
-head(streetrx, 15)
+set.seed(42)
+slice_sample(streetrx, n=20)
 ```
+
+# Initial observations (brain dump)
+
+- At least one of the response variables (`ppm`) is missing - we'll need to remove these observations
+- `yq_pdate` and `price_date` contain redundant information - possibly best to break these 2 columns apart into quarter, day, month, and year columns. Likely day won't be important after accounting for month and year - check a random set of same month/year pairings and see if there's a trend?
+- `city` frequently missing
+- `state` contains 59 levels: will need to look into this
+- `country` column not needed (only working with USA)
+- `source` looks frequently missing and it's not clear how many levels there are: look into
+- `api_temp`: Not needed (we're only working with oxymorphone)
+- `mgstr`: Will need to validate this - shouldn't be negative or 0 (check histogram)
+- `bulk_purchase`: Remove the text
+- `primary_reason`: Looks missing frequently
+
+# Checking Columns One-byone
+
+The big one. First, let's take a look at which fields have missing values and how frequently they occur. First, the response variable
+
+```{r}
+sum(is.na(streetrx$ppm))
+```
+
+We'll need to drop these, because a missing response provides no assistance to our model:
+
+```{r}
+streetrx <- streetrx %>% filter(!is.na(ppm))
+```
+
+Any other weird values?
+
+```{r}
+ggplot(streetrx, aes(x=ppm)) + geom_histogram(bins = 50)
+```
+
+There are some very extreme values here:
+
+```{r}
+streetrx %>% filter(ppm > 10)
+```
+
+I'm certainly not an expert on drugs. But based on the previous prices, these are likely erroneously recorded, or not serious entries. Keep an eye on and consider dropping - the corresponding points could be influential
+
 
