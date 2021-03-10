@@ -14,6 +14,7 @@ output: html_notebook
 - Dropped `country` and `api_temp`
 - Removed observations with missing `ppm` (14)
 - Dropped unused levels
+- Dropped observations where `state == 'USA'`
 
 ```{r include=FALSE}
 knitr::opts_chunk$set('echo'=FALSE)
@@ -103,3 +104,28 @@ table(streetrx$city, exclude = '') %>% hist()
 Don't include for now
 
 ## State
+
+Missing values?
+
+```{r}
+sum(is.na(streetrx$state))
+```
+
+No - let's check a table then:
+
+```{r}
+table(streetrx$state)
+```
+
+Ok, we have 52 levels but we *should* have 50. D.C. is on there which is fine. The other incorrect value is a state of "USA". We'll probably have to drop these, or we could take a look at their cities and manually enter the state
+
+```{r}
+streetrx %>% filter(state == 'USA')
+```
+
+City is missing, region is missing - we don't have any location information on these observations: drop
+
+```{r}
+streetrx <- streetrx %>% filter(state != 'USA')
+```
+
