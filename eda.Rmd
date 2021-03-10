@@ -13,6 +13,7 @@ output: html_notebook
 - Filtered data such that `api_temp = oxymorphone`
 - Dropped `country` and `api_temp`
 - Removed observations with missing `ppm` (14)
+- Dropped unused levels
 
 ```{r include=FALSE}
 knitr::opts_chunk$set('echo'=FALSE)
@@ -23,6 +24,9 @@ library(lubridate)
 
 load('streetrx.rdata')
 streetrx <- streetrx %>% filter(api_temp == 'oxymorphone')
+
+# Drop unusued levels:
+streetrx <- droplevels(streetrx)
 
 # Only 1 country (USA), and we're only working with 
 drop_cols <- c('country', 'api_temp')
@@ -75,4 +79,27 @@ streetrx %>% filter(ppm > 10)
 
 I'm certainly not an expert on drugs. But based on the previous prices, these are likely erroneously recorded, or not serious entries. Keep an eye on and consider dropping - the corresponding points could be influential
 
+## City
 
+First, check for standard missing values
+
+```{r}
+sum(is.na(streetrx$city))
+```
+
+Some issues:
+
+- Missing city is the most common (1413 times)
+- Nonstandard casing (sometimes lowercase)
+- Numbers occasionally appear
+- State occasionally included in city
+
+Honestly this column is a bit of a mess, with many values appearing a very minimal number of times:
+
+```{r}
+table(streetrx$city, exclude = '') %>% hist()
+```
+
+Don't include for now
+
+## State
