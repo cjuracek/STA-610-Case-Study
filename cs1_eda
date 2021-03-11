@@ -1,0 +1,265 @@
+---
+title: "hm-cs1"
+output: html_document
+---
+
+```{r message=FALSE}
+library(tidyverse)
+```
+
+
+```{r}
+load("streetrx.RData")
+```
+
+```{r}
+df <- streetrx %>% filter(api_temp=="oxymorphone")
+```
+
+```{r}
+# str(df)
+# summary(df)
+```
+
+## Cleaning individual variables
+
+* Response: ppm
+* Grouping variables to consider: city, state, USA_region
+* Non-group predictors to consider: Continuous: yq_pdate, mgstr, ; Categorical: source, bulk_purchase, Primary_Reason
+* Can drop: price_date, country (all USA), api_temp, form_temp (consider the "suppository" point)
+
+
+```{r}
+# cleaning state:
+
+table(df$state)
+
+# remove levels corresponding to states with 0 observations in df
+df$state <- droplevels(df$state)
+table(df$state)
+
+# drop North Dakota - one observation
+df <- df %>% filter(state != "North Dakota")
+df$state <- droplevels(df$state)
+table(df$state)
+
+# replace state "USA" with "Unknown"
+df$state <- recode_factor(df$state, "USA" = "Unknown")
+table(df$state)
+
+```
+
+
+```{r}
+# cleaning region: 
+
+# looks fine:
+table(df$USA_region)
+
+# confirms that the unknown state observations are same as those with unknown region
+table(df$USA_region, df$state)
+```
+
+
+```{r}
+hist(df$yq_pdate)
+
+# list extreme date observations
+df[df$yq_pdate < 20101,]
+
+# probably knowingly wrong entries -- remove?
+idxs <- rownames(df[df$yq_pdate < 20101,])
+df <- df[-as.numeric(idxs), ]
+hist(df$yq_pdate)
+# looks fine
+```
+
+
+```{r}
+hist(df$mgstr)
+# fine as is?
+```
+
+
+```{r}
+# recode sources 
+
+# remove unused levels
+df$source <- droplevels(df$source)
+
+source_df <- data.frame(table(df$source))
+
+levels(df$source)
+levels(df$source)[1] <- "Blank_source"
+
+source_df <- data.frame(table(df$source))
+
+df$source <- recode_factor(df$source, "Blank_source" = "Blank_source",
+                           "Internet" = "Internet",
+                           "Internet Pharmacy" = "Internet",
+                           "Personal" = "Personal",
+                           "Heard it" = "Heard it",
+                           .default = "URL or other")
+
+source_df_2 <- data.frame(table(df$source))
+```
+
+
+```{r}
+table(df$bulk_purchase, useNA = "always")
+# looks fine
+```
+
+```{r}
+
+# remove unused levels
+df$Primary_Reason <- droplevels(df$Primary_Reason)
+
+reason_df <- data.frame(table(df$Primary_Reason))
+
+levels(df$Primary_Reason)
+levels(df$Primary_Reason)[1] <- "Blank_reason"
+
+df$Primary_Reason <- recode_factor(df$Primary_Reason, "Blank_reason" = "Blank_reason",
+                                   "9 To self-treat my pain" = "Self-treat pain",
+                                   "4 For enjoyment/to get high" = "Enjoyment",
+                           .default = "Other or unknown")
+
+```
+
+
+
+```{r}
+# log transform for ppm looks good
+hist(log(df$ppm))
+
+# transform
+df$log_ppm <- log(df$ppm)
+```
+
+
+## More EDA
+
+```{r}
+
+ggplot(df, aes(x=reorder(state, state, length), y=log_ppm, fill=state)) +
+geom_boxplot() +
+labs(title="log PPM by state", x="state",y="Log PPM")
+
+ggplot(df, aes(x=reorder(USA_region, USA_region, length), y=log_ppm, fill=USA_region)) +
+geom_boxplot() +
+labs(title="log PPM by region", x="region",y="Log PPM")
+
+ggplot(df[df$state=="Florida",], aes(x=reorder(city, city, length), y=log_ppm)) +
+geom_boxplot() +
+labs(title="log PPM by city (FL)", x="city",y="Log PPM")
+
+ggplot(df[df$state=="California",], aes(x=reorder(city, city, length), y=log_ppm)) +
+geom_boxplot() +
+labs(title="log PPM by city (CA)", x="city",y="Log PPM")
+```
+
+```{r}
+# some states have few observations for even most populous cities... 
+temp <- df$city[df$state=="Massachusetts"]
+length(temp)
+
+# look at the big cities overall 
+city_temp <- df %>% group_by(city) %>% summarize(city_count = n()) %>% arrange(-city_count)
+city_temp[1:20, ]
+hist(city_temp$city_count[-1])
+View(city_temp)
+
+# look at the big states  
+state_temp <- df %>% group_by(state) %>% summarize(state_count = n()) %>% arrange(-state_count)
+state_temp[1:20, ]
+hist(state_temp$state_count[-1])
+View(state_temp)
+```
+
+## Try new state, city recoding
+
+```{r}
+df2 <- df
+```
+
+
+```{r}
+# keep states with # observations >= n, group together other states into "other"
+
+# define threshold number of observations
+state_n <- 100
+
+# create a new factor level for states with observation counts below the threshold
+levels(df2$state) <- c(levels(df2$state), "Low-count state")
+
+# re-label the low-count states as such in the data
+state_counts <- df2 %>% group_by(state) %>% summarize(state_count = n()) %>% arrange(-state_count)
+low_n_obs_states <- state_counts$state[state_counts$state_count < state_n]
+low_n_obs_states
+df2[df2$state %in% low_n_obs_states, ]$state <- "Low-count state"
+
+```
+
+```{r}
+# look at the bar plots for state again
+ggplot(df2, aes(x=reorder(state, state, length), y=log_ppm, fill=state)) +
+geom_boxplot() +
+labs(title="log PPM by state", x="state",y="Log PPM")
+```
+
+## Thinking about modeling... 
+
+Consider simple regressions, with and without the grouping variables:
+
+```{r}
+lm_noGroups <- lm(log_ppm ~ yq_pdate + mgstr + source + bulk_purchase + Primary_Reason, df2)
+lm_region <- lm(log_ppm ~ USA_region + yq_pdate + mgstr + source + bulk_purchase + Primary_Reason, df2)
+lm_regionState <- lm(log_ppm ~ USA_region + state + yq_pdate + mgstr + source + bulk_purchase + Primary_Reason, df2)
+# lm_regionStateCity <- lm(log_ppm ~ USA_region + state + city + yq_pdate + mgstr + source + bulk_purchase + Primary_Reason, df2)
+```
+
+```{r}
+# summary(lm_noGroups)
+# summary(lm_region)
+# summary(lm_regionState)
+```
+
+```{r}
+# looks like including region is useful
+anova(lm_noGroups, lm_region)
+
+# looks like including state in addition to region is useful 
+anova(lm_region, lm_regionState)
+
+```
+
+```{r}
+ggplot(data = df2, aes(x = yq_pdate, y = log_ppm)) + 
+  geom_point() +
+  facet_grid(~ USA_region)
+
+ggplot(data = df2, aes(x = mgstr, y = log_ppm)) + 
+  geom_point() +
+  facet_grid(~ USA_region)
+
+ggplot(data = df2, aes(x = source, y = log_ppm)) + 
+  geom_boxplot() +
+  facet_grid(~ USA_region)
+
+ggplot(data = df2, aes(x = bulk_purchase, y = log_ppm)) + 
+  geom_boxplot() +
+  facet_grid(~ USA_region)
+
+ggplot(data = df2, aes(x = Primary_Reason, y = log_ppm)) + 
+  geom_boxplot() +
+  facet_grid(~ USA_region)
+
+# all 3 categorical variables look like they vary by region
+```
+
+```{r}
+ggplot(data = df2, aes(x = yq_pdate, y = log_ppm)) + 
+  geom_point() +
+  facet_grid(. ~ state)
+```
