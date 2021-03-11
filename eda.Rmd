@@ -220,8 +220,13 @@ table(streetrx$bulk_purchase)
 ```
 
 ```{r}
-ggplot(small_ppm, aes(x=ppm, fill=bulk_purchase, color=bulk_purchase)) +
-    geom_histogram(position="identity", alpha=0.5)
+ggplot(small_ppm, aes(x=bulk_purchase, y=ppm)) + geom_boxplot()
 ```
 
+It looks like bulk purchases are generally associated with cheaper prices. But are these differences in means significant? We may apply the t-test because the CLT kicks in for these large groups
 
+```{r}
+t.test(ppm ~ bulk_purchase, data = small_ppm)
+```
+
+So bulk purchase looks to be a significant predictor *if* we exclude the extreme ppm values
