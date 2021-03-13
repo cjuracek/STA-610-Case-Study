@@ -54,6 +54,8 @@ slice_sample(streetrx, n=20)
 
 # Checking Columns One-byone
 
+Keep, log transform
+
 The big one. First, let's take a look at which fields have missing values and how frequently they occur. First, the response variable
 
 ```{r}
@@ -69,7 +71,7 @@ streetrx <- streetrx %>% filter(!is.na(ppm))
 Any other weird values?
 
 ```{r}
-ggplot(streetrx, aes(x=ppm)) + geom_histogram(bins = 50)
+ggplot(streetrx, aes(x=log(ppm))) + geom_histogram(bins = 50)
 ```
 
 There are some very extreme values here:
@@ -109,9 +111,22 @@ Firstly, change this to a date and extract its component parts:
 ```{r}
 streetrx$price_date <- as.Date(streetrx$price_date, format= '%m/%d/%y')
 streetrx <- streetrx %>% mutate(year = lubridate::year(price_date),
-                                month = lubridate::month(price_date),
+                                month = as.factor(lubridate::month(price_date)),
                                 day = lubridate::day(price_date))
 ```
+
+I wouldn't think we should include year, as presumably we're going to be using this for future data, for which we'll have a new year. What about month? We'll use median because there are some extreme ppm values
+
+```{r}
+streetrx %>% group_by(month) %>% summarise(med_ppm = median(ppm))
+```
+
+An F test shows that we cannot reject the possibility that this variance is simply due to chance:
+
+```{r}
+aov(ppm ~ month, data = streetrx) %>% summary()
+```
+
 
 ## City
 
@@ -164,6 +179,8 @@ streetrx <- streetrx %>% filter(state != 'USA') %>% droplevels()
 
 ## USA region
 
+Recode missing as "missing"
+
 ```{r}
 table(streetrx$USA_region)
 ```
@@ -178,6 +195,8 @@ ggplot(small_ppm, aes(x=ppm, color=USA_region)) + geom_density(bw=0.5)
 They all look pretty similar actually *except* for South, which seems to be higher priced than the other on average.
 
 ## Source
+
+Missing (empty), internet (interet pharmacy, url, google), heard it, personal, other
 
 Only 18 levels - let's check the table output:
 
