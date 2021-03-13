@@ -25,6 +25,8 @@ library(lubridate)
 
 load('streetrx.rdata')
 streetrx <- streetrx %>% filter(api_temp == 'oxymorphone')
+streetrx <- streetrx %>% filter(!is.na(ppm))
+streetrx$log_ppm <- log(streetrx$ppm)
 
 # Drop unusued levels:
 streetrx <- droplevels(streetrx)
@@ -54,9 +56,9 @@ slice_sample(streetrx, n=20)
 
 # Checking Columns One-byone
 
-Keep, log transform
+**Keep, log transform**
 
-The big one. First, let's take a look at which fields have missing values and how frequently they occur. First, the response variable
+Our response. First, let's take a look at which fields have missing values and how frequently they occur. First, the response variable
 
 ```{r}
 sum(is.na(streetrx$ppm))
@@ -208,12 +210,21 @@ Let's recode some of these:
 
 ```{r}
 # Recode "missing" values to NA
-levels(streetrx$source)[levels(streetrx$source) == ''] <- NA_character_
-streetrx$source <- recode_factor(streetrx$source, 'w'=NA_character_,
-                                 'Idk'=NA_character_)
+levels(streetrx$source)[levels(streetrx$source) == ''] <- 'Missing'
+streetrx$source <- recode_factor(streetrx$source, 'w'='Missing',
+                                 'Idk'='Missing')
 
-levels(streetrx$source)[grepl('bluelight', levels(streetrx$source), fixed=TRUE)] <- 'bluelight'
-levels(streetrx$source)[grepl('opiophile', levels(streetrx$source), fixed=TRUE)] <- 'opiophile'
+streetrx$source <- recode_factor(streetrx$source,
+                                 'Www.drugforum.com' = 'Internet',
+                                 'Google.com' = 'Internet',
+                                 'opiophile' = 'Internet',
+                                 'silkroad' = 'Internet',
+                                 'bluelight' = 'Internet',
+                            'http://www.kentucky.com/2011/08/05/1835152/union-college-presidents-wife.html' = 'Internet')
+
+for(website in c('bluelight', 'opiophile', 'silkroad')) {
+    levels(streetrx$source)[grepl(website, levels(streetrx$source), fixed=TRUE)] <- website    
+}
 ```
 
 There's still work to be done on this one. Ultimately about 1/3 of these values are missing - we might not be able to save it from that.
@@ -232,6 +243,16 @@ Not actually a continuous variable:
 table(streetrx$mgstr)
 ```
 
+```{r}
+mgstr_grouped <- streetrx %>% group_by(mgstr) %>% summarise(avg=mean(log_ppm))
+ggplot(mgstr_grouped, aes(x=mgstr, y=avg)) + geom_line()
+```
+
+```{r}
+ggplot(streetrx, aes(x=log_ppm)) + geom_histogram(bins = 50)
+```
+
+
 ## bulk_purchase
 
 ```{r}
@@ -239,13 +260,27 @@ table(streetrx$bulk_purchase)
 ```
 
 ```{r}
-ggplot(small_ppm, aes(x=bulk_purchase, y=ppm)) + geom_boxplot()
+ggplot(streetrx, aes(x=bulk_purchase, y=log_ppm)) + geom_boxplot()
 ```
 
 It looks like bulk purchases are generally associated with cheaper prices. But are these differences in means significant? We may apply the t-test because the CLT kicks in for these large groups
 
 ```{r}
-t.test(ppm ~ bulk_purchase, data = small_ppm)
+t.test(log_ppm ~ bulk_purchase, data = streetrx)
 ```
 
-So bulk purchase looks to be a significant predictor *if* we exclude the extreme ppm values
+So the two bulk purchase values look to have significantly different log ppm prices
+
+## Primary Reason
+
+```{r}
+table(streetrx$Primary_Reason)
+```
+
+First of all, it seems like "reporter did not answer the question" and missing should belong to the same category. Let's see:
+
+```{r}
+t.test(streetrx[streetrx$Primary_Reason == '',]$log_ppm,
+       streetrx[streetrx$Primary_Reason == '0 Reporter did not answer the question',]$log_ppm)
+```
+
