@@ -36,7 +36,6 @@ Which variables to we want to include?
 - year
 
 ```{r}
-#model_1 <- lmer(log_ppm ~ (1 | state) + (source + mgstr + bulk_purchase + year)^2, data=streetrx)
 model_1 <- lmer(log_ppm ~ (1 | state) + source + mgstr + bulk_purchase + year, data=streetrx)
 BIC(model_1)
 ```
@@ -46,7 +45,6 @@ Add new random effects:
 ```{r}
 model_2 <- lmer(log_ppm ~ (1 | state) + USA_region + source + mgstr + bulk_purchase +
                 Primary_Reason + year, data=streetrx)
-#BIC(model_2)
 step(model_2)
 ```
 
