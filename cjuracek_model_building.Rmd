@@ -1,0 +1,63 @@
+---
+title: "Cole Juracek - Model Building"
+output: html_notebook
+---
+
+```{r}
+library(lme4)
+library(lmerTest)
+library(brms)
+library(dplyr)
+
+load('mod_streetrx.Rda')
+streetrx$year <- as.numeric(as.character(streetrx$year))
+
+# Need to relabel single observation
+streetrx$source <- recode_factor(streetrx$source, 'STREET PRICE' = 'Heard it')
+
+# Similar reason
+levels(streetrx$Primary_Reason)[levels(streetrx$Primary_Reason) == ''] <- '0 Reporter did not answer the question'
+```
+
+# Simple models
+
+No interactions, random intercept on state (no other random slopes), no Bayesian specification:
+
+Predicting: log_ppm
+
+Which variables to we want to include?
+
+- State (as a random effect)
+- USA_region
+- source
+- mgstr
+- bulk_purchase
+- Primary reason
+- year
+
+```{r}
+#model_1 <- lmer(log_ppm ~ (1 | state) + (source + mgstr + bulk_purchase + year)^2, data=streetrx)
+model_1 <- lmer(log_ppm ~ (1 | state) + source + mgstr + bulk_purchase + year, data=streetrx)
+BIC(model_1)
+```
+
+Add new random effects:
+
+```{r}
+model_2 <- lmer(log_ppm ~ (1 | state) + USA_region + source + mgstr + bulk_purchase +
+                Primary_Reason + year, data=streetrx)
+#BIC(model_2)
+step(model_2)
+```
+
+```{r}
+model_bms <- brm(data = streetrx, family = gaussian,
+    log_ppm ~ (1 | state) + source + mgstr + bulk_purchase + year,
+    prior = c(prior(normal(0, 10), class = Intercept),
+              prior(normal(0, 10), class = b),
+              prior(cauchy(0, 1), class = sd),
+              prior(cauchy(0, 1), class = sigma)),
+    iter = 100, warmup = 10, chains = 2, cores = 2,
+    seed = 13)
+```
+
