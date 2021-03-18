@@ -256,6 +256,8 @@ Controlling for other variables, taking oxymorphone with the primary reason of e
 Controlling for other variables, purchasing oxymorphone with Internet source tends to receive a exp(0.02) = 1.0202 times higher price per mg than people with unknown drug source.
 Controlling for other variables, purchasing oxymorphone with personal source tends to receive a exp(0.07) = 1.0725 times higher price per mg than people with unknown drug source.
 Controlling for other variables, purchasing oxymorphone with “heard it” source tends to receive a exp(0.24) = 1.2712 times higher price per mg than people with unknown drug source.
+* For the date_num variable, all else quals, for every one unit increase in the date_num, the price per mg of oxymorphone decreases to exp(-0.0001290) =  0.999871 times the original price.
+* For the mgstr variable, controlling for for other variables, for every one unit increase in mgstr, the price per mg of oxymorphone decrease to exp(-0.0241262) =  0.9761625 times the original price.
 
 
 #### Random Effects
