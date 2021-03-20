@@ -195,6 +195,13 @@ ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Caro
 ```
 
 ## Model
+
+Per the research question of interest, we are interested in exploring factors related to price per mg of oxymorphone. We are also specifically asked to control for location and how drug price changes with it. Cities seemed to be too noisy to use as a location predictor. On the flip side, region did not seem to be associated with a significant change in drug prices. Therefore, state provides the best granularity of accounting for location in this instance.
+
+Linear regression models are usually a good standard approach to this, providing clear interpretations of how various predictors are associated with drug price. As seen in the EDA, however, many states have excessively small sample sizes. This produces corresponding $\hat{\beta}_{OLS}$ estimates with large variance. We would like to be able to *partially pool* information across states, letting us borrow information to help stabilize state estimates with small sample sizes.
+
+This prompts a **mixed effects model**, where we instead model the state coefficients as having been drawn $N(0, \tau^2)$. 
+
 #### Model Specification
 
 $$y_{ij} = \beta_{0,j} + \beta_{1} date_num + \beta_{2} mgstr + \beta_{3} bulk_purchase + \beta_{4} Primary_Reason + \beta_{5} source + \epsilon_{ij}$$
@@ -222,9 +229,9 @@ mod1 <- lmer(data=df, log_ppm ~ (1 | state) + date_num + mgstr + bulk_purchase +
 
 #### Model Diagnostics
 ```{r, fig.align='center', warning=FALSE, message=FALSE, error=FALSE}
-resqq <- plot_resqq(mod1)
-ranefci <- plot_ranef(mod1)
-grid.arrange(resqq, ranefci, ncol = 2)
+# resqq <- plot_resqq(mod1)
+# ranefci <- plot_ranef(mod1)
+# grid.arrange(resqq, ranefci, ncol = 2)
 ```
 
 Model diagnostics discussions here.
