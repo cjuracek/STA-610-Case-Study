@@ -14,14 +14,9 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-library(tidyverse)
-library(lme4)
-library(gridExtra)
-library(grid)
-library(ggplot2)
-library(lattice)
+if (!require(pacman)) install.packages("pacman")
+pacman::p_load(tidyverse, lme4, gridExtra, grid, ggplot2, lattice, redres)
 #devtools::install_github("goodekat/redres")
-library(redres)
 ```
 
 ```{r, echo = FALSE}
