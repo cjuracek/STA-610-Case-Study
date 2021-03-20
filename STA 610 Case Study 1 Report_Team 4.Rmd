@@ -213,11 +213,13 @@ $$
 $$
 
 * i stands for individuals and j stands for each state. 
-* $\beta_{0,j}$ is the random intercept by state. 
-* $\beta_{1}$ measures the fixed effect for date_num, the date variable.
-* $\beta_{2}$ measures the fixed effect for mgstr, the dosage strength of reported drug in milligrams.
-* $\beta_{3}$ measures the fixed effect for bulk_purchase is a binary variable that is represented by an indicator function I(bulk_purchase = Yes). 
-* $\beta_{4}$ measures the fixed effect for the categorical variable Primary_Reason which contains three categories: Other or unknown, Self-treat and Enjoyment.
+* $\beta_{0,j}$: Random intercept by state
+* $\beta_{1}$: Fixed effect for date_num, the date variable
+* $\beta_{2}$: Fixed effect for mgstr, the dosage strength of reported drug in milligrams.
+* $\beta_{3}$: Fixed effect for bulk_purchase is a binary variable that is represented by an indicator function I(bulk_purchase = Yes). 
+* $\beta_{4}$: Fixed effect for the categorical variable Primary_Reason which contains three categories:     - Other or unknown
+    - Self-treat
+    - Enjoymen
 * $\beta_{5}$ measures the fixed effect for the categorical variable source
 
 
