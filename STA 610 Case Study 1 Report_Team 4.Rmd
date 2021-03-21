@@ -401,8 +401,42 @@ print(paste("BIC for grouping on region", round(BIC(mod_r), 3)))
 
 State provides the best level of BIC, so we will choose this for our grouping variable.
 
+Now let's investigate dropping various fixed effects and see results of our hypothesis tests:
 
-Now let's investigate dropping various
+```{r}
+# Test date_num
+test <- anova(mod_s,
+      lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+print(test$`Pr(>Chisq)`)  # Drop date_num
+
+# Test date_quarter
+test <- anova(lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + 
+                    bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+print(test$`Pr(>Chisq)`) # drop date_quarter
+
+# Test dose_per_mg
+test <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + bulk_purchase + Primary_Reason + source, REML=F))
+print(test$`Pr(>Chisq)`)  # Don't drop dose_per_mg
+
+# Test bulk purchase
+test <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + Primary_Reason + source, REML=F))
+print(test$`Pr(>Chisq)`) # Don't drop bulk_purchase
+
+# Test primary reason
+test <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + source, REML=F))
+print(test$`Pr(>Chisq)`) # Don't drop Primary_reason
+
+# Test source
+test <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase, REML=F))
+print(test$`Pr(>Chisq)`) # Don't drop source
+```
+
+Thus these results suggest we want to drop
 
 #### Model Specification
 
