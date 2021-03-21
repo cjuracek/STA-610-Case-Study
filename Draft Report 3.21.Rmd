@@ -1,0 +1,567 @@
+---
+title: "STA610 Case Study 1 Team 4 Report"
+author:
+- Cole Juracek (Coordinator)
+- Lauren Palazzo (Programmer)
+- Lingyu Zhou (Checker)
+- Fan Zhu (Presenter)
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(lme4)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+library(lattice)
+# devtools::install_github("goodekat/redres")
+library(redres)
+library(stringr)
+library(influence.ME)
+```
+
+```{r, echo = FALSE}
+
+load("streetrx.RData")
+df <- streetrx %>% filter(api_temp=="oxymorphone", !is.na(ppm))
+```
+
+# Introduction
+
+This study is an exploration of the relationship between the sale price per milligram of diverted pharmaceutical substances and other factors related to the sale, as reflected in self-reported data from the website StreetRx. StreetRx maintains a partnership with the Researched Abuse, Diversion, and Addiction-Related Surveillance System (RADARS), which aims for these data to inform public health measures such as health policy related to illicit drugs. 
+
+[insert something about our specific drug here]
+
+Among the data available to us are location data pertaining to the city, state, and United States region of the sale. These variables present a natural grouping structure for the price data, which suggest that we employ a hierarchical model in our analysis. The benefits of a hierarchical model include the ability to "borrow information" from the data set as a whole to stabilize estimates of price for groups (e.g., states) with relatively small sample size, and to establish a estimated distribution of how price varies with respect to groups, which would in theory allow generalization to new groups not included in the original analysis. 
+
+# Exploratory data analysis and data cleaning
+
+## Data cleaning
+
+### Group variables
+
+We performed an initial examination of two grouping variables, `state` and `USA_region`. The state North Dakota had only one observation, and as such was not considered a well-defined "group" for which a variance could be estimated; thus this state's observation was removed. States labeled simply as "USA" were recoded to "Unknown". Region was also sometimes labeled as uknown or other; these observations coincided with the unknown states (see appendix Table X). (The variable `city` as a grouping variable is addressed later in the report.)
+
+```{r, echo = FALSE}
+# cleaning state:
+
+# table(df$state)
+
+# remove levels corresponding to states with 0 observations in df
+df$state <- droplevels(df$state)
+# table(df$state)
+
+# drop North Dakota - one observation
+df <- df %>% filter(state != "North Dakota")
+df$state <- droplevels(df$state)
+# table(df$state)
+
+# replace state "USA" with "Unknown"
+df$state <- recode_factor(df$state, "USA" = "Unknown")
+# table(df$state)
+
+### PUT IN APPENDIX: the state-by-region table of coutns below
+# table(df$state, df$USA_region)
+```
+
+
+### Date variable
+
+We considered two different ways to engineer the date-of-sale feature. One intuitive and commonly-used approach would be to recode this as a continuous variables counting days from some start date, the intent of which would be to capture the influence of inflation for this price data that spans years. Another approach would be to consider whether there might be an effect of seasonality on drug prices. 
+
+For recoding date into a continuous variable, `date_num`, we filter out observations dated prior to the year 2010, as that is the year that the StreetRx web site was founded. For the seasonality variable, `date_quarter`, we extract the "quarter" of the year (numbered 1 through 4) as its own variable. Below we see the distributions of these variables: 
+
+```{r, echo = FALSE}
+# Change date to numeric (easier for interpretation)
+
+# this sets 
+df$date_num <- as.numeric(as.Date(df$price_date, "%m/%d/%y")) - 14621 # sets 1/12/2010 (first post-2010 date) as zero
+
+tempdf <- df %>% select(date_num, price_date)
+
+# this filters out all data before the 1/1/2000, which probably shouldn't be included
+df <- df %>% filter(date_num >= 0)
+```
+
+
+```{r}
+df$date_quarter <- as.numeric(substr(df$yq_pdate, 5, 5))
+```
+
+
+```{r}
+hist(df$date_num)
+knitr::kable(table(df$date_quarter))
+```
+
+
+### Sources variable
+
+As the variable `source` that describes the source of the price information is a user-input field, it is an inherently "messy" variable that calls for some recoding in order to make the levels of the variable more meaningful and interpretable, and to avoid overfitting. In the case of `source`, some user input is simply blank, while a small number of other entries indicate in some other way that the source is unknown or unclear. Since it is quite uncommon in the data for a source to be entered yet indicated as unknown, we decided to drop these unkown-source observations as being indicative of poor data quality. (If the user cannot identify their source of price information, why should we trust their price data?) We decided to distinguish between "Internet pharmacy" sources and other internet sources, since there may be a distinction between a source that is selling a drug versus perhaps just discussing a drug price in a forum, which may yield less legitimate information. Ultimately, we recoded the categorical variable "sources" into the following levels.
+
+```{r, echo = FALSE}
+# recode sources 
+
+# remove unused levels
+df$source <- droplevels(df$source)
+
+source_df <- data.frame(table(df$source))
+
+# levels(df$source)
+levels(df$source)[1] <- "Blank"
+
+source_df <- data.frame(table(df$source))
+
+df$source <- recode_factor(df$source, "Blank" = "Blank",
+                           "Internet" = "Internet",
+                           "Internet Pharmacy" = "Internet Pharmacy",
+                           "Personal" = "Personal",
+                           "Heard it" = "Heard it",
+                           "Idk" = "Unknown",
+                           "w" = "Unknown",
+                           "STREET PRICE" = "Heard it",
+                           .default = "Internet") # everything else is a URL
+
+source_df_2 <- data.frame(table(df$source))
+
+# drop unknowns
+
+df <- df %>% filter(df$source != "Unknown")
+df$source <- droplevels(df$source)
+
+knitr::kable(table(df$source), col.names = c("Level", "Freq"))
+```
+
+### Bulk purchase variable
+
+Our visualization of the bulk purchase variable indicates nothing unexpected that calls for data cleaning. 
+
+```{r}
+#table(df$bulk_purchase, useNA = "always")
+# looks fine
+```
+
+### Purchase reason variable
+
+`Primary_Reason` for purchase is another user-input variable that calls for recoding. Similarly to the `source` variable, we retain the information about which entries were blank. We also try to distinguish this from a different response level that is not blank, yet indicates the user did not provide a reason. We further still distinguished between these responses and a non-blank response of refusal to answer. We strove to avoid making presumptions of no difference between these similar-seeming response types, as they may indicate variations in data processing that hold some predictive power that we are not yet aware of. We ultimately recoded the categorical variable `Primary_Reason` into the following levels.
+
+```{r}
+# remove unused levels
+df$Primary_Reason <- droplevels(df$Primary_Reason)
+
+reason_df <- data.frame(table(df$Primary_Reason))
+
+# levels(df$Primary_Reason)
+levels(df$Primary_Reason)[1] <- "Blank"
+
+reason_df <- data.frame(table(df$Primary_Reason))
+
+df$Primary_Reason <- recode_factor(df$Primary_Reason, "Blank" = "Blank",
+                                   "0 Reporter did not answer the question" = "Left unanswered",
+                                   "Other or unknown" = "Other or unknown",
+                                   "9 To self-treat my pain" = "Self-treat",
+                                   "3 To prevent or treat withdrawal" = "Self-treat",
+                                   "10 To treat a medical condition other than pain" = "Self-treat",
+                                   "4 For enjoyment/to get high" = "Enjoyment",
+                                   "5 To resell" = "Resell",
+                                   "8 Prefer not to answer" = "Refuse to answer",
+                           .default = "Other or unknown")
+
+reason_df_2 <- data.frame(table(df$Primary_Reason))
+
+#print(reason_df)
+knitr::kable(reason_df_2, col.names = c("Level", "Freq"))
+```
+
+### Drug strength variable
+
+We renamed this variable `dose_per_mg` to make its meaning clearer to the reader. This is a continuous variable that nevertheless tends to take on only a few values, as depicted in the histogram. We considered a recoding of this variable into levels, but decided against it as the dose per milligram technically may take on any value and the generalizability of our model may be improved if we are able to consider dose levels that are in a realistic range yet not present in our current data. 
+
+```{r}
+hist(df$mgstr)
+# rename variable for ease of interpretability
+df <- df %>% rename(dose_per_mg = mgstr)
+```
+
+
+### Response variable: Price per milligram
+
+We are considering fitting a hierarchical model with a response variable that has normally distributed errors, and so we would like our response variable, here `ppm`, or price per milligram, to be close to normally-distributed. The histogram of the `ppm` is extremely right skewed (not unexpected for data related to financial measures such as price, salary, earnings, etc.), while the distribution of the log(`ppm`) looks roughly normal. Thus, we will use `log_ppm` as the dependent variable in our model.
+
+```{r, fig.height=3, fig.align='center'}
+# log transform ppm
+df$log_ppm <- log(df$ppm)
+
+hist_ppm <- ggplot(df, aes(x=ppm)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 50)+
+ geom_density(alpha=.2, fill="red") 
+
+hist_log_ppm <- ggplot(df, aes(x=log_ppm)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 50)+
+ geom_density(alpha=.2, fill="blue") 
+
+grid.arrange(hist_ppm, hist_log_ppm, ncol=2)
+```
+
+In order to cut off extreme price values that may skew the results for typical prices, we restrict the `log_ppm` distribution to more realistic and representative values: 
+
+```{r}
+df <- df %>% filter(log_ppm > -2 & log_ppm < 2)
+```
+
+
+## Exploratory data analysis for random intercepts
+
+We now take a closer look at our grouping variables with a focus on the question of whether random intercepts might be appropriate. 
+
+### State
+
+We show boxplots of `log_ppm` by `state`, arranged in the order of increasing sample size from the bottom to the top. 
+
+```{r, fig.align='center', fig.height=6}
+ggplot(df, aes(x=log_ppm, y=reorder(state, state, length), fill=state)) +
+geom_boxplot() +
+labs(title="State", x="Log PPM by state",y="Log PPM")
+```
+
+We see that some states with small sample sizes have distributions of `log_price` that seem unstable, with respect to how much they differ from other boxplots; this provides support for the idea that the stabilizing effect of a hierarchical model would benefit our analysis. The fact that some distributions differ from each other in a noteworthy way (e.g., boxplots hardly overlapping) suggests group-based differences in price that should be taken into account in modeling, as opposed to lumping all states' data together without distinction. 
+
+### Region
+
+Viewing a similar plot for the regions of the USA, we do see some variability in price among regions, but it is not as pronounced as for the states.
+
+```{r, fig.align='center'}
+ggplot(df, aes(x=reorder(USA_region, USA_region, length), y=log_ppm, fill=USA_region)) +
+geom_boxplot() +
+labs(title="log PPM by region", x="region",y="Log PPM")
+```
+
+### City
+
+We find that there are many cities with a sample size of one, which makes `city` perhaps not the most natural choice for a grouping variable. Example visualizations shown here are for all cities in the states of Florida and California. 
+
+```{r, fig.align='center'}
+fl_lppmbycity <- ggplot(df[df$state=="Florida",], aes(x=log_ppm, y=reorder(city, city, length))) +
+geom_boxplot() +
+labs(title="log PPM by city (FL)", x="Log PPM",y="city")
+
+ca_lppmbycity <- ggplot(df[df$state=="California",], aes(x=reorder(city, city, length), y=log_ppm)) +
+geom_boxplot() +
+labs(title="log PPM by city (CA)", x="Log PPM",y="city")
+
+grid.arrange(fl_lppmbycity, ca_lppmbycity, ncol= 2)
+```
+
+We decided to focus on `state` as our primary candidate for a grouping variable moving forward. 
+
+## Exploratory data analysis for random slopes
+
+To consider whether we may want to include random slopes by state for our predictor variables, we examined plots of the predictor versus response among each state individually to determine whether it seemed that slopes fit to the group-level data would differ. (We present a sample of visualizations here rather than visualizations for every state, due to space constraints.) 
+
+For out continuous variables (continuous date and dosage strength), in by-state plots we often saw strikingly similar patterns in predictor vs. response, suggesting that random slopes may not be necessary for these variables. 
+
+### dose_per_mg
+```{r, fig.align='center'}
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = dose_per_mg, y = log_ppm)) + 
+  geom_point() +
+  facet_grid(~ state)
+```
+
+
+### date_num
+```{r, fig.align='center'}
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_num, y = log_ppm)) + 
+  geom_point() +
+  facet_grid(~ state)
+```
+
+For categorical variables, we generally observed was there was indeed variation among the states, but it was not clear whether this variation had any well-defined structure. It was not clear whether our models would benefit from random slopes for these variables, so we decided to further investigate this in our modeling process.  
+
+### bulk_purchase
+```{r, fig.align='center'}
+# categorical variables -- looking at South only
+ggplot(data = df[df$USA_region == "South",], aes(x = bulk_purchase, y = log_ppm)) + 
+  geom_boxplot() +
+  facet_grid(~ state)
+```
+
+### date_quarter
+```{r}
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_quarter, y = log_ppm, group = date_quarter)) + 
+  geom_boxplot() +
+  facet_grid(~ state)
+```
+
+### Primary_Reason
+```{r}
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = Primary_Reason, y = log_ppm, group = Primary_Reason)) + 
+  geom_boxplot() +
+  facet_grid(~ state)
+```
+
+### source
+```{r}
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = source, y = log_ppm, group = source)) + 
+  geom_boxplot() +
+  facet_grid(~ state)
+```
+## More EDA: slope and intercept distributions for predictors by state
+
+To get a better sense of how state-level groups and slopes are distributed, we created the following intercepts for our coninuous variables:
+
+### Dose strength variable
+
+```{r}
+group_int_list <- NULL 
+group_slope_list <- NULL
+
+for(statej in
+  unique(df$state))
+{
+m <- lm(data = df[df$state==statej, ], log_ppm ~ dose_per_mg)
+
+group_int_list <- c(group_int_list, coef(m)[1])
+group_slope_list <- c(group_slope_list, coef(m)[2])
+}
+
+hist(group_int_list)
+hist(group_slope_list)
+```
+
+### Continuous date variable
+
+```{r}
+group_int_list <- NULL 
+group_slope_list <- NULL
+
+for(statej in
+  unique(df$state))
+{
+m <- lm(data = df[df$state==statej, ], log_ppm ~ date_num)
+
+group_int_list <- c(group_int_list, coef(m)[1])
+group_slope_list <- c(group_slope_list, coef(m)[2])
+}
+
+hist(group_int_list)
+hist(group_slope_list)
+```
+
+
+# Model selection and diagnostics ---- Unfinished! ------
+
+## Model specification
+
+We are considering models of the following form (with some coefficients potentially equal to zero):
+
+$$
+y_{ij} = \beta_{0,j} + \beta_{1,j} date\text{_}num + \beta_{2,j} mgstr + \beta_{3,j} bulk\text{_}purchase + \beta_{4,j} Primary\text{_}Reason + \beta_{5,j} source + \beta_{6,j} date\text{_}quarter + \epsilon_{ij}
+$$
+
+Where: 
+* $\beta_{0,j}$ represents the intercept, which we plan to fit as a random intercept for each group $j$, so that it would have the form:
+$\beta_{0,j} = \beta_0 + b_{0,j}, b_{0,j} \sim N(0,\tau_0^2)$
+
+* The $\beta_k$ for $k=1,...,6$ are the coefficients for our fixed effect predictors. We will consider random slopes by group for these, in which case they would have the form: 
+$\beta_{k,j} = \beta_k + b_{k,j}, b_{k,j} \sim N(0,\tau_k^2)$
+
+We also have that $\epsilon_{ij} \perp b_{0,j} \overset{iid}{\sim} N(0,\sigma^2)$ for all $i, j$. 
+
+
+## Model specification
+
+### Grouping variables and random intercepts
+
+We see that `state` appears to be best for grouping; region is good as well. 
+
+
+```{r}
+mod_s <- lmer(data=df, log_ppm ~ (1 |state) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+mod_c <- lmer(data=df, log_ppm ~ (1 |city) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+mod_r <- lmer(data=df, log_ppm ~ (1 |USA_region) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+
+summary(mod_s)
+# summary(mod_c)
+# summary(mod_r)
+BIC(mod_s)
+BIC(mod_c)
+BIC(mod_r)
+LR <- 2*(logLik(mod_s)-logLik(mod_c))
+0.5*(1-pchisq(LR[1],1)+1-pchisq(LR[1],1)) # choose s over c
+
+LR <- 2*(logLik(mod_r)-logLik(mod_c))
+0.5*(1-pchisq(LR[1],1)+1-pchisq(LR[1],1)) # choose c over r
+
+LR <- 2*(logLik(mod_s)-logLik(mod_r))
+0.5*(1-pchisq(LR[1],1)+1-pchisq(LR[1],1)) # choose s over r
+
+# conclusion: choose state random intercept
+```
+
+```{r}
+anova(mod_s,
+      lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+# drop date_num
+
+anova(lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+# drop date_quarter
+
+anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + bulk_purchase + Primary_Reason + source, REML=F))
+# don't drop dose_per_mg
+
+anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + Primary_Reason + source, REML=F))
+# don't srop bulk_purchase
+
+anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + source, REML=F))
+# do drop Primary_reason
+
+anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase, REML=F))
+# do drop source
+```
+
+
+Now investigate random slopes: 
+
+```{r}
+anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase, REML=F),
+      lmer(data=df, log_ppm ~ (dose_per_mg |state) + dose_per_mg + bulk_purchase, REML=F))
+# random slopes for dose_per_mg are good - BIC = 8624.6
+
+anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase, REML=F),
+      lmer(data=df, log_ppm ~ (bulk_purchase |state) + dose_per_mg + bulk_purchase, REML=F))
+# random slopes for nulk_purchase not helpful
+```
+
+
+Our candidate for final model is then:
+
+```{r}
+mod_final <- lmer(data=df, log_ppm ~ (dose_per_mg |state) + dose_per_mg + bulk_purchase, REML=F)
+```
+
+There are convergence inssues. Try removing states that are influential? Based on the "dfbetas" visualization below, they are Wyoming, Nevada, Alaska.
+
+```{r}
+mod_infl <- influence(mod_final,"state")
+print(2/sqrt(length(unique(df_filter$state))))
+diagn_df <- data.frame(dfbetas(mod_infl))
+plot(mod_infl,which="dfbetas",xlab="DFBETAS",ylab="State")
+
+resqq <- plot_resqq(mod_final)
+ranefci <- plot_ranef(mod_final)
+grid.arrange(resqq, ranefci, ncol = 2)
+```
+
+
+```{r}
+df_filter <- df %>% filter(state != "Alaska" & state != "Wyoming" & state != "Nevada")
+```
+
+## Changes start here
+
+```{r}
+mod_final <- lmer(data=df_filter, log_ppm ~ (dose_per_mg |state) + dose_per_mg + bulk_purchase, REML=F)
+BIC(mod_final)
+
+#model with no random slope is better
+#best model!!!
+mod_final <- lmer(data=df_filter, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + source, REML=F)
+BIC(mod_final)
+#8412.338
+
+#class model
+mod1 <- lmer(data=df_filter, log_ppm ~ (1 | state) + date_num + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+BIC(mod1)
+
+mod_infl <- influence(mod_final,"state")
+print(2/sqrt(length(unique(df_filter$state))))
+diagn_df <- data.frame(dfbetas(mod_infl))
+plot(mod_infl,which="dfbetas",xlab="DFBETAS",ylab="State")
+
+resqq <- plot_resqq(mod_final)
+ranefci <- plot_ranef(mod_final)
+#take a long time to run
+#resi <- plot_redres(mod_final, type = "std_cond")
+grid.arrange(resqq, ranefci, ncol = 3)
+```
+
+See below: looks like the singularity is because some states don't have enough data for `bulk_purchase`. Ugh. Should we use `region` instead??? 
+
+## Results
+#### Fixed Effects
+```{r, message=FALSE}
+#knitr::kable(fixef(mod1))
+#confint(mod1)[3:11,]
+
+# extract coefficients
+coefs <- data.frame(coef(summary(mod_final)))
+# use normal distribution to approximate p-value
+coefs$p.z <- 2 * (1 - pnorm(abs(coefs$t.value)))
+knitr::kable(coefs, col.names = c("Estimate", "Std.Error", "t-value", "P-value"))
+```
+
+#### need to change numbers after finalizing model
+* date_num: For the date_num variable, controlling for other variables, for every one unit increase in the date_num, the price per mg of oxymorphone reduces by a multiplicative effect of exp(-0.0001290) =  0.999871, about a 0.0129% decrease.
+
+* mgstr: For the mgstr variable, controlling for for other variables, for every one unit increase in mgstr, the price per mg of oxymorphone reduces by a multiplicative effect of exp(-0.0241262) =  0.9761625, about a 2.38375% decrease.
+
+* bulk_purchase: “Not bulk purchase” is the reference group.
+  * Controlling for other variables, being bulk purchase reduces the price per mg by a multiplicative effect of exp(-0.161) = 0.8521, about a 14.79% reduction.
+
+* Primary_Reason: “Primary_Reason: Other or Unknown” is the reference group. 
+  * Controlling for other variables, taking oxymorphone with the primary reason of self-treating increase the price per mg by a multiplicative effect of exp(0.05) = 1.0513, about a 5.13% increase than the price per mg of oxymorphone for people whose primary reason is “other or unknown”. 
+  * Controlling for other variables, taking oxymorphone with the primary reason of enjoyment tends to increase the price per mg by a multiplicative effect of exp(0.2) = 1.221403, about a 22.1403% increase than the price per mg of oxymorphone for people whose primary reason is “other or unknown”.
+
+* source: “Source: Unknown” is the reference group. 
+
+  * Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.02) = 1.0202, about a 2.02% increase than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with personal source tends to increase the price per mg by a multiplicative effect of exp(0.07) = 1.0725, about a 7.25% increase than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with “heard it” source tends to increase the price per mg by a multiplicative effect of exp(0.24) = 1.2712, about a 27.12% increase than the price per mg of oxymorphone for people with unknown drug source.
+
+#### Random Effects
+```{r}
+#VarCorr(mod1)
+Variance <- c(0.04748, 0.96369)
+Std.Dev <- c(0.2179, 0.9817)
+Groups <- c("state (Intercept)", "Residual")
+
+REvar <- cbind(Groups, Variance, Std.Dev)
+
+knitr::kable(REvar, col.names = c("Group", "Variance", "Std.Dev"))
+```
+The within-state variance $\sigma^2$ is 0.96369, which is much larger than the across-state variance $\tau^2$, 0.04748.
+
+```{r, include=FALSE}
+library(sjstats)
+icc(mod_final)
+```
+
+
+```{r}
+ICC <- 0.047
+knitr::kable(ICC, col.names = "Intraclass Correlation")
+```
+Intraclass correlation is 0.047, which means values are not very similar from the same state.
+
+```{r, fig.align='center', fig.height=8}
+dotplot(ranef(mod_final, condVar=TRUE))$state
+```
+From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Nevada is the lowest and this intercept is also significant.
+
+## Appendix
+```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+```
