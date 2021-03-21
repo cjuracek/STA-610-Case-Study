@@ -515,22 +515,16 @@ knitr::kable(coefs, col.names = c("Estimate", "Std.Error", "t-value", "P-value")
 ```
 
 #### need to change numbers after finalizing model
-* date_num: For the date_num variable, controlling for other variables, for every one unit increase in the date_num, the price per mg of oxymorphone reduces by a multiplicative effect of exp(-0.0001290) =  0.999871, about a 0.0129% decrease.
-
-* mgstr: For the mgstr variable, controlling for for other variables, for every one unit increase in mgstr, the price per mg of oxymorphone reduces by a multiplicative effect of exp(-0.0241262) =  0.9761625, about a 2.38375% decrease.
+* dose_per_mg: Controlling for other variables, for every one milligram increase of dosage, the price per mg of oxymorphone increases by a multiplicative effect of exp(-0.01524395) = 0.9848717, about a 1.51% reduction.
 
 * bulk_purchase: “Not bulk purchase” is the reference group.
-  * Controlling for other variables, being bulk purchase reduces the price per mg by a multiplicative effect of exp(-0.161) = 0.8521, about a 14.79% reduction.
-
-* Primary_Reason: “Primary_Reason: Other or Unknown” is the reference group. 
-  * Controlling for other variables, taking oxymorphone with the primary reason of self-treating increase the price per mg by a multiplicative effect of exp(0.05) = 1.0513, about a 5.13% increase than the price per mg of oxymorphone for people whose primary reason is “other or unknown”. 
-  * Controlling for other variables, taking oxymorphone with the primary reason of enjoyment tends to increase the price per mg by a multiplicative effect of exp(0.2) = 1.221403, about a 22.1403% increase than the price per mg of oxymorphone for people whose primary reason is “other or unknown”.
+  * Controlling for other variables, bulk purchase reduces the price per mg of oxymorphone by a multiplicative effect of exp(-0.17013501) = 0.8435509, about a 15.64% reduction.
 
 * source: “Source: Unknown” is the reference group. 
-
-  * Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.02) = 1.0202, about a 2.02% increase than the price per mg of oxymorphone for people with unknown drug source.
-  * Controlling for other variables, purchasing oxymorphone with personal source tends to increase the price per mg by a multiplicative effect of exp(0.07) = 1.0725, about a 7.25% increase than the price per mg of oxymorphone for people with unknown drug source.
-  * Controlling for other variables, purchasing oxymorphone with “heard it” source tends to increase the price per mg by a multiplicative effect of exp(0.24) = 1.2712, about a 27.12% increase than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.12686001) = 1.135258, about a 13.53% increase than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with Internet Pharmacy source tends to increase the price per mg by a multiplicative effect of exp(-0.44349281) = 0.6417908, about a 35.82% reduction of the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with personal source tends to increase the price per mg by a multiplicative effect of exp(0.06140303) = 1.063327, about a 6.33% increase than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with “heard it” source tends to increase the price per mg by a multiplicative effect of exp(0.18025958) = 1.197528, about a 19.75% increase than the price per mg of oxymorphone for people with unknown drug source.
 
 #### Random Effects
 ```{r}
