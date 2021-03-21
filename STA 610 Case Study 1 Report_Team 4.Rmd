@@ -1,7 +1,7 @@
 ---
 title: "STA610 Case Study 1 Team 4 Report"
 author: 
-  - Cole Juracek (Coordinator) 
+  - Cole Juracek (Programmer) 
   - Lauren Palazzo (Programmer) 
   - Lingyu Zhou (Checker) 
   - Fan Zhu (Presenter)
@@ -10,12 +10,12 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, cache = TRUE)
 ```
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 if (!require(pacman)) install.packages("pacman")
-pacman::p_load(tidyverse, lme4, gridExtra, grid, ggplot2, lattice, redres)
+pacman::p_load(tidyverse, lme4, gridExtra, grid, ggplot2, lattice, redres, lubridate)
 #devtools::install_github("goodekat/redres")
 ```
 
@@ -127,15 +127,15 @@ levels(df$Primary_Reason)[1] <- "Other or unknown"
 reason_df <- data.frame(table(df$Primary_Reason))
 
 df$Primary_Reason <- recode_factor(df$Primary_Reason, "Other or unknown" = "Other or unknown",
-                                   "9 To self-treat my pain" = "Self-treat",
-                                   "3 To prevent or treat withdrawal" = "Self-treat",
-                                   "10 To treat a medical condition other than pain" = "Self-treat",
-                                   "4 For enjoyment/to get high" = "Enjoyment",
-                           .default = "Other or unknown")
+                                    "9 To self-treat my pain" = "Self-treat",
+                                    "3 To prevent or treat withdrawal" = "Self-treat",
+                                    "10 To treat a medical condition other than pain" = "Self-treat",
+                                    "4 For enjoyment/to get high" = "Enjoyment",
+                            .default = "Other or unknown")
 
 reason_df_2 <- data.frame(table(df$Primary_Reason))
 
-#print(reason_df)
+print(reason_df)
 knitr::kable(reason_df_2, col.names = c("Level", "Freq"))
 ```
 
@@ -205,6 +205,9 @@ This prompts a **mixed effects model**, where we instead model the state coeffic
 #### Model Specification
 
 $$y_{ij} = \beta_{0,j} + \beta_{1} date_num + \beta_{2} mgstr + \beta_{3} bulk_purchase + \beta_{4} Primary_Reason + \beta_{5} source + \epsilon_{ij}$$
+
+$$log(y_{ij}) = \beta_{0,j} + \beta_{1} x_{ij1} + \beta_{2} x_{ij2} + \beta_{3} x_{ij3} + \beta_{4} x_{ij4} + \beta_{5} x_{ij5} + \epsilon_{ij}$$
+
 $$
 \beta_{0,j} = \beta_0 + b_{0,j}, b_{0,j} \sim N(0,\tau^2)
 $$
@@ -212,21 +215,31 @@ $$
 \epsilon_{ij} \perp b_{0,j} \overset{iid}{\sim} N(0,\sigma^2)
 $$
 
-* i stands for individuals and j stands for each state. 
-* $\beta_{0,j}$: Random intercept by state
-* $\beta_{1}$: Fixed effect for date_num, the date variable
-* $\beta_{2}$: Fixed effect for mgstr, the dosage strength of reported drug in milligrams.
-* $\beta_{3}$: Fixed effect for bulk_purchase is a binary variable that is represented by an indicator function I(bulk_purchase = Yes). 
-* $\beta_{4}$: Fixed effect for the categorical variable Primary_Reason which contains three categories:     - Other or unknown
-    - Self-treat
-    - Enjoymen
-* $\beta_{5}$ measures the fixed effect for the categorical variable source
+This linear model estimates the log price per miligram $log(y)$ of oxymorphonefor an invidual $i$ in state $j$ ($x_{ij}$). The following predictors are defined as:
 
+* $x_1$: The number of days since the recorded transaction and January 1st, 2000
+* $x_2$: Dosage strength in mg of the units purchased
+* $x_3$: Bulk purchase, an indicator for whether 10+ units were purchased at once
+* $x_4$: The primary reason for purchase. Factors include "other/unknown", "self-treatment", and "enjoyment"
+* $x_5$: Source of information (allows for reporting of transactions). Factors include "unkown", "internet", "heard it", and "personal"
 
 Model Selection discussions here.
 
+- mgstr: good
+- bulk_purchase: good
+
 ```{r}
-mod1 <- lmer(data=df, log_ppm ~ (1 | state) + date_num + mgstr + bulk_purchase + Primary_Reason + source)
+mod1b.inf <- influence(mod1b, maxfun=1)
+infIndexPlot(mod1b.inf, vars='Cook')
+```
+
+
+```{r}
+#mod1 <- lmer(data=df, log_ppm ~ (1 | state) + date_num + mgstr + bulk_purchase + Primary_Reason + source)
+#mod1b <- lmer(data=df, log_ppm ~ (1 | state) + year + mgstr + bulk_purchase + Primary_Reason + source)
+big_data <- df[!influential,]
+mod1c <- lmer(data=big_data, log_ppm ~ (1 | state) + year + mgstr + bulk_purchase + Primary_Reason + source)
+qqmath(mod1c)
 ```
 
 #### Model Diagnostics
