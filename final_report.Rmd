@@ -481,3 +481,66 @@ mod1 <- lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + sourc
 ```
 
 Model diagnostics discussions here.
+
+## Results
+#### Fixed Effects
+```{r, message=FALSE}
+#knitr::kable(fixef(mod1))
+#confint(mod1)[3:11,]
+# extract coefficients
+coefs <- data.frame(coef(summary(mod_final)))
+# use normal distribution to approximate p-value
+coefs$p.z <- 2 * (1 - pnorm(abs(coefs$t.value)))
+knitr::kable(coefs, col.names = c("Estimate", "Std.Error", "t-value", "P-value"))
+```
+
+* dose_per_mg: Controlling for other variables, for every one milligram increase of dosage, the price per mg of oxymorphone increases by a multiplicative effect of exp(-0.0151868) = 0.9849279, about a 1.51% reduction.
+
+* bulk_purchase: “Not bulk purchase” is the reference group.
+  * Controlling for other variables, bulk purchase reduces the price per mg of oxymorphone by a multiplicative effect of exp(-0.1691121) = 0.8444142, about a 15.56% reduction.
+
+* source: “Source: Unknown” is the reference group. 
+  * Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.1339468) = 1.143332, about a 14.33% increase than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with Internet Pharmacy source tends to reduce the price per mg by a multiplicative effect of exp(-0.4584378) = 0.6322706, about a 36.77% reduction than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with personal source tends to increase the price per mg by a multiplicative effect of exp(0.0565153) = 1.058143, about a 5.81% increase than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with “heard it” source tends to increase the price per mg by a multiplicative effect of exp(0.1790027) = 1.196024, about a 19.6% increase than the price per mg of oxymorphone for people with unknown drug source.
+  
+* Primary Reason: “Primary_Reason: Blank” is the reference group. 
+  * Controlling for other variables, purchasing oxymorphone with primary reason Left unanswered tends to increase the price per mg by a multiplicative effect of exp(0.0176846) = 1.017842, about a 1.78% increase than the price per mg of oxymorphone for people with Blank primary reason.
+  * Controlling for other variables, purchasing oxymorphone with primary reason Other or unknown tends to increase the price per mg by a multiplicative effect of exp(0.0486307) = 1.049833, about a 4.98% increase than the price per mg of oxymorphone for people with Blank primary reason.
+  * Controlling for other variables, purchasing oxymorphone with primary reason Self-treat tends to increase the price per mg by a multiplicative effect of exp(0.1034974) = 1.109043, about a 10.9% increase than the price per mg of oxymorphone for people with Blank primary reason.
+  * Controlling for other variables, purchasing oxymorphone with primary reason Enjoyment tends to increase the price per mg by a multiplicative effect of exp(0.1838890) = 1.201882, about a 20.19% increase than the price per mg of oxymorphone for people with Blank primary reason.
+  * Controlling for other variables, purchasing oxymorphone with primary reason Resell tends to reduce the price per mg by a multiplicative effect of exp(-0.3179197) = 0.7276612, about a 27.23% reduction than the price per mg of oxymorphone for people with Blank primary reason.
+  * Controlling for other variables, purchasing oxymorphone with primary reason Refuse to answer tends to increase the price per mg by a multiplicative effect of exp(0.0564516) = 1.058075, about a 5.81% increase than the price per mg of oxymorphone for people with Blank primary reason.
+
+#### Random Effects
+```{r}
+#VarCorr(mod_final)
+Variance <- c(0.02292, 0.50060)
+Std.Dev <- c(0.15140 , 0.70753)
+Groups <- c("state (Intercept)", "Residual")
+REvar <- cbind(Groups, Variance, Std.Dev)
+knitr::kable(REvar, col.names = c("Group", "Variance", "Std.Dev"))
+```
+The within-state variance $\sigma^2$ is 0.5006, which is much larger than the across-state variance $\tau^2$, 0.02292.
+
+```{r, include=FALSE}
+library(sjstats)
+icc(mod_final)
+```
+
+
+```{r}
+ICC <- 0.044
+knitr::kable(ICC, col.names = "Intraclass Correlation")
+```
+Intraclass correlation is 0.044, which means values are not very similar from the same state.
+
+```{r, fig.align='center', fig.height=8}
+dotplot(ranef(mod_final, condVar=TRUE))$state
+```
+From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Arizona is the lowest and this intercept is also significant.
+
+## Appendix
+```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+```
