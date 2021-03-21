@@ -1,0 +1,307 @@
+---
+title: "STA610 Case Study 1 Team 4 Report"
+author: 
+  - Cole Juracek (Coordinator) 
+  - Lauren Palazzo (Programmer) 
+  - Lingyu Zhou (Checker) 
+  - Fan Zhu (Presenter)
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(lme4)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+library(lattice)
+#devtools::install_github("goodekat/redres")
+library(redres)
+```
+
+```{r, echo = FALSE}
+load("streetrx.RData")
+df <- streetrx %>% filter(api_temp=="oxymorphone", !is.na(ppm))
+```
+
+```{r, echo = FALSE}
+# cleaning state:
+
+# table(df$state)
+
+# remove levels corresponding to states with 0 observations in df
+df$state <- droplevels(df$state)
+# table(df$state)
+
+# drop North Dakota - one observation
+df <- df %>% filter(state != "North Dakota")
+df$state <- droplevels(df$state)
+# table(df$state)
+
+# replace state "USA" with "Unknown"
+df$state <- recode_factor(df$state, "USA" = "Unknown")
+# table(df$state)
+
+# log transform ppm
+df$log_ppm <- log(df$ppm)
+```
+
+## EDA
+#### PPM
+
+```{r, fig.height=3, fig.align='center'}
+hist_ppm <- ggplot(df, aes(x=ppm)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 50)+
+ geom_density(alpha=.2, fill="red") 
+
+hist_log_ppm <- ggplot(df, aes(x=log_ppm)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 50)+
+ geom_density(alpha=.2, fill="blue") 
+
+grid.arrange(hist_ppm, hist_log_ppm, ncol=2)
+```
+The histogram of the original ppm is extremely right skewed, while the distribution of the log(ppm) looks roughly normal. Thus, we will use the log(ppm) as the dependent variable in our model.
+
+```{r, echo = FALSE}
+# Change date to numeric (easier for interpretation)
+
+# this sets 
+df$date_num <- as.numeric(as.Date(df$price_date, "%m/%d/%y")) - 10957 # sets 1/1/2000 as zero
+
+tempdf <- df %>% select(date_num, price_date)
+
+# this filters out all data before the 1/1/2000, which probably shouldn't be included
+df <- df %>% filter(date_num >= 0)
+
+```
+
+#### Sources
+
+We recoded the categorical variable "sources" into the following 4 levels.
+```{r, echo = FALSE}
+# recode sources 
+
+# remove unused levels
+df$source <- droplevels(df$source)
+
+source_df <- data.frame(table(df$source))
+
+# levels(df$source)
+levels(df$source)[1] <- "Unknown"
+
+source_df <- data.frame(table(df$source))
+
+df$source <- recode_factor(df$source, "Unknown" = "Unknown",
+                           "Internet" = "Internet",
+                           "Internet Pharmacy" = "Internet",
+                           "Personal" = "Personal",
+                           "Heard it" = "Heard it",
+                           "Idk" = "Unknown",
+                           "w" = "Unknown",
+                           "STREET PRICE" = "Heard it",
+                           .default = "Internet") # everything else is a URL
+
+source_df_2 <- data.frame(table(df$source))
+
+
+knitr::kable(source_df_2, col.names = c("Level", "Freq"))
+```
+
+```{r}
+#table(df$bulk_purchase, useNA = "always")
+# looks fine
+```
+
+#### Primary_Reason
+
+We recoded the categorical variable "Primary_Reason" into the following 3 levels.
+```{r}
+# remove unused levels
+df$Primary_Reason <- droplevels(df$Primary_Reason)
+
+reason_df <- data.frame(table(df$Primary_Reason))
+
+# levels(df$Primary_Reason)
+levels(df$Primary_Reason)[1] <- "Other or unknown"
+
+reason_df <- data.frame(table(df$Primary_Reason))
+
+df$Primary_Reason <- recode_factor(df$Primary_Reason, "Other or unknown" = "Other or unknown",
+                                   "9 To self-treat my pain" = "Self-treat",
+                                   "3 To prevent or treat withdrawal" = "Self-treat",
+                                   "10 To treat a medical condition other than pain" = "Self-treat",
+                                   "4 For enjoyment/to get high" = "Enjoyment",
+                           .default = "Other or unknown")
+
+reason_df_2 <- data.frame(table(df$Primary_Reason))
+
+#print(reason_df)
+knitr::kable(reason_df_2, col.names = c("Level", "Freq"))
+```
+
+#### State
+```{r, fig.align='center', fig.height=6}
+ggplot(df, aes(x=log_ppm, y=reorder(state, state, length), fill=state)) +
+geom_boxplot() +
+labs(title="state", x="log PPM by state",y="Log PPM")
+```
+The boxplot of log PPM by state is arranged in the order of increasing sample size from the bottom to the top. 
+
+#### Region
+
+```{r, fig.align='center'}
+ggplot(df, aes(x=reorder(USA_region, USA_region, length), y=log_ppm, fill=USA_region)) +
+geom_boxplot() +
+labs(title="log PPM by region", x="region",y="Log PPM")
+```
+
+
+#### City
+```{r, fig.align='center'}
+fl_lppmbycity <- ggplot(df[df$state=="Florida",], aes(x=log_ppm, y=reorder(city, city, length))) +
+geom_boxplot() +
+labs(title="log PPM by city (FL)", x="Log PPM",y="city")
+
+ca_lppmbycity <- ggplot(df[df$state=="California",], aes(x=reorder(city, city, length), y=log_ppm)) +
+geom_boxplot() +
+labs(title="log PPM by city (CA)", x="Log PPM",y="city")
+
+grid.arrange(fl_lppmbycity, ca_lppmbycity, ncol= 2)
+```
+
+#### mgstr
+```{r, fig.align='center'}
+# random slopes for mgstr? 
+
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = mgstr, y = log_ppm)) + 
+  geom_point() +
+  facet_grid(~ state)
+```
+
+#### bulk_purchase
+```{r, fig.align='center'}
+# categorical variables -- looking at South only
+ggplot(data = df[df$USA_region == "South",], aes(x = bulk_purchase, y = log_ppm)) + 
+  geom_boxplot() +
+  facet_grid(~ state)
+```
+
+#### date_num
+```{r, fig.align='center'}
+# categorical variables -- looking at South only
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_num, y = log_ppm)) + 
+  geom_point() +
+  facet_grid(~ state)
+```
+
+## Model
+#### Model Specification
+
+$$y_{ij} = \beta_{0,j} + \beta_{1} date_num + \beta_{2} mgstr + \beta_{3} bulk_purchase + \beta_{4} Primary_Reason + \beta_{5} source + \epsilon_{ij}$$
+$$
+\beta_{0,j} = \beta_0 + b_{0,j}, b_{0,j} \sim N(0,\tau^2)
+$$
+$$
+\epsilon_{ij} \perp b_{0,j} \overset{iid}{\sim} N(0,\sigma^2)
+$$
+
+* i stands for individuals and j stands for each state. 
+* $\beta_{0,j}$ is the random intercept by state. 
+* $\beta_{1}$ measures the fixed effect for date_num, the date variable.
+* $\beta_{2}$ measures the fixed effect for mgstr, the dosage strength of reported drug in milligrams.
+* $\beta_{3}$ measures the fixed effect for bulk_purchase is a binary variable that is represented by an indicator function I(bulk_purchase = Yes). 
+* $\beta_{4}$ measures the fixed effect for the categorical variable Primary_Reason which contains three categories: Other or unknown, Self-treat and Enjoyment.
+* $\beta_{5}$ measures the fixed effect for the categorical variable source
+
+
+Model Selection discussions here.
+
+```{r}
+mod1 <- lmer(data=df, log_ppm ~ (1 | state) + date_num + mgstr + bulk_purchase + Primary_Reason + source)
+```
+
+#### Model Diagnostics
+```{r, fig.align='center', warning=FALSE, message=FALSE, error=FALSE}
+resqq <- plot_resqq(mod1)
+ranefci <- plot_ranef(mod1)
+resi <- plot_redres(mod1, type = "std_cond")
+grid.arrange(resi, resqq, ranefci, ncol = 3)
+```
+
+Model diagnostics discussions here.
+
+From the esiduals versus the fitted values plot, there are several outliers in the lower half of the plot. 
+From the normal quantile plot of the raw conditional residuals, the residuals are skewed and there are a lot of outliers. Thus, the residuals are not normally distributed. 
+From the normal quantile plot on random effect state, there are only two outliers. Thus, we can accept random effect of state is normally distributed. 
+
+## Results
+#### Fixed Effects
+```{r, message=FALSE}
+#knitr::kable(fixef(mod1))
+#confint(mod1)[3:11,]
+
+# extract coefficients
+coefs <- data.frame(coef(summary(mod1)))
+# use normal distribution to approximate p-value
+coefs$p.z <- 2 * (1 - pnorm(abs(coefs$t.value)))
+knitr::kable(coefs, col.names = c("Estimate", "Std.Error", "t-value", "P-value"))
+```
+
+* date_num: For the date_num variable, controlling for other variables, for every one unit increase in the date_num, the price per mg of oxymorphone reduces by a multiplicative effect of exp(-0.0001290) =  0.999871, about a 0.0129% decrease.
+
+* mgstr: For the mgstr variable, controlling for for other variables, for every one unit increase in mgstr, the price per mg of oxymorphone reduces by a multiplicative effect of exp(-0.0241262) =  0.9761625, about a 2.38375% decrease.
+
+* bulk_purchase: “Not bulk purchase” is the reference group.
+  * Controlling for other variables, being bulk purchase reduces the price per mg by a multiplicative effect of exp(-0.161) = 0.8521, about a 14.79% reduction.
+
+* Primary_Reason: “Primary_Reason: Other or Unknown” is the reference group. 
+  * Controlling for other variables, taking oxymorphone with the primary reason of self-treating increase the price per mg by a multiplicative effect of exp(0.05) = 1.0513, about a 5.13% increase than the price per mg of oxymorphone for people whose primary reason is “other or unknown”. 
+  * Controlling for other variables, taking oxymorphone with the primary reason of enjoyment tends to increase the price per mg by a multiplicative effect of exp(0.2) = 1.221403, about a 22.1403% increase than the price per mg of oxymorphone for people whose primary reason is “other or unknown”.
+
+* source: “Source: Unknown” is the reference group. 
+  * Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.02) = 1.0202, about a 2.02% increase than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with personal source tends to increase the price per mg by a multiplicative effect of exp(0.07) = 1.0725, about a 7.25% increase than the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with “heard it” source tends to increase the price per mg by a multiplicative effect of exp(0.24) = 1.2712, about a 27.12% increase than the price per mg of oxymorphone for people with unknown drug source.
+
+#### Random Effects
+```{r}
+#VarCorr(mod1)
+Variance <- c(0.04748, 0.96369)
+Std.Dev <- c(0.2179, 0.9817)
+Groups <- c("state (Intercept)", "Residual")
+
+REvar <- cbind(Groups, Variance, Std.Dev)
+
+knitr::kable(REvar, col.names = c("Group", "Variance", "Std.Dev"))
+
+```
+The within-state variance $\sigma^2$ is 0.96369, which is much larger than the across-state variance $\tau^2$, 0.04748.
+
+```{r, include=FALSE}
+library(sjstats)
+icc(mod1)
+```
+
+
+```{r}
+ICC <- 0.047
+knitr::kable(ICC, col.names = "Intraclass Correlation")
+```
+Intraclass correlation is 0.047, which means values are not very similar from the same state.
+
+```{r, fig.align='center', fig.height=8}
+dotplot(ranef(mod1, condVar=TRUE))$state
+```
+From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Nevada is the lowest and this intercept is also significant.
+
+
+
+
+## Appendix
+```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+```
