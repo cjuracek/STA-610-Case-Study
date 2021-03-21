@@ -522,7 +522,7 @@ knitr::kable(coefs, col.names = c("Estimate", "Std.Error", "t-value", "P-value")
 
 * source: “Source: Unknown” is the reference group. 
   * Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.12686001) = 1.135258, about a 13.53% increase than the price per mg of oxymorphone for people with unknown drug source.
-  * Controlling for other variables, purchasing oxymorphone with Internet Pharmacy source tends to increase the price per mg by a multiplicative effect of exp(-0.44349281) = 0.6417908, about a 35.82% reduction of the price per mg of oxymorphone for people with unknown drug source.
+  * Controlling for other variables, purchasing oxymorphone with Internet Pharmacy source tends to reduce the price per mg by a multiplicative effect of exp(-0.44349281) = 0.6417908, about a 35.82% reduction of the price per mg of oxymorphone for people with unknown drug source.
   * Controlling for other variables, purchasing oxymorphone with personal source tends to increase the price per mg by a multiplicative effect of exp(0.06140303) = 1.063327, about a 6.33% increase than the price per mg of oxymorphone for people with unknown drug source.
   * Controlling for other variables, purchasing oxymorphone with “heard it” source tends to increase the price per mg by a multiplicative effect of exp(0.18025958) = 1.197528, about a 19.75% increase than the price per mg of oxymorphone for people with unknown drug source.
 
