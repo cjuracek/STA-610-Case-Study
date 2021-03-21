@@ -384,7 +384,7 @@ In terms of the research question, we would also like to group based on location
 - State
 - City
 
-In order to test whether keeping a variable in the model is "worth it", we may perform a likelihood ratio test for nested models. For adding $k$ fixed effects, the LRT test statistic follows a $\chi^2(k)$ distribution, and for adding $k$ random effect, the LRT test statistic follows a 50-50 mixture of $\chi^2(k)$ and $\chi^2(k + 1)$ distribution. For non-nested models, we can use BIC as a rough indicator of which model is "better". BIC balances likelihood of model with how parsimonious it is.
+In order to test whether keeping a variable in the model is "worth it", we may perform a likelihood ratio test for nested models. For adding $k$ fixed effects, the LRT test statistic follows a $\chi^2(k)$ distribution, and for adding $k$ random effects, the LRT test statistic follows a 50-50 mixture of $\chi^2(k)$ and $\chi^2(k + 1)$ distribution. For non-nested models, we can use BIC as a rough indicator of which model is "better". BIC balances likelihood of model with how parsimonious it is.
 
 First, let's decide what to group on for region:
 
@@ -480,9 +480,7 @@ These results suggest that we should stick with a random intercept only.
 
 #### Model Specification
 
-$$y_{ij} = \beta_{0,j} + \beta_{1} date_num + \beta_{2} mgstr + \beta_{3} bulk_purchase + \beta_{4} Primary_Reason + \beta_{5} source + \epsilon_{ij}$$
-
-$$log(y_{ij}) = \beta_{0,j} + \beta_{1} x_{ij1} + \beta_{2} x_{ij2} + \beta_{3} x_{ij3} + \beta_{4} x_{ij4} + \beta_{5} x_{ij5} + \epsilon_{ij}$$
+$$log(y_{ij}) = \beta_{0,j} + \beta_{1} x_{ij1} + \beta_{2} x_{ij2} + \beta_{3} x_{ij3} + \beta_{4} x_{ij4} + \epsilon_{ij}$$
 
 $$
 \beta_{0,j} = \beta_0 + b_{0,j}, b_{0,j} \sim N(0,\tau^2)
@@ -493,16 +491,10 @@ $$
 
 This linear model estimates the log price per miligram $log(y)$ of oxymorphone for an invidual $i$ in state $j$ ($x_{ij}$). The following predictors are defined as:
 
-* $x_1$: The number of days since the recorded transaction and January 1st, 2000
-* $x_2$: Dosage strength in mg of the units purchased
-* $x_3$: Bulk purchase, an indicator for whether 10+ units were purchased at once
-* $x_4$: The primary reason for purchase. Factors include "other/unknown", "self-treatment", and "enjoyment"
-* $x_5$: Source of information (allows for reporting of transactions). Factors include "unkown", "internet", "heard it", and "personal"
-
-Model Selection discussions here.
-
-- mgstr: good
-- bulk_purchase: good
+* $x_1$: Dosage strength in mg of the units purchased
+* $x_2$: Bulk purchase, an indicator for whether 10+ units were purchased at once
+* $x_3$: The primary reason for purchase. Factors include "blank", "left unanswered", "other or unknown", "self-treatment", "enjoyment", "resell", and "refuse to answer"
+* $x_4$: Source of information (allows for reporting of transactions). Factors include "unkown", "internet", "internet pharmacy", "heard it", and "personal"
 
 ```{r}
 # mod1b.inf <- influence(mod1b, maxfun=1)
