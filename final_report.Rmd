@@ -319,3 +319,165 @@ group_slope_list <- c(group_slope_list, coef(m)[2])
 hist(group_int_list)
 hist(group_slope_list)
 ```
+
+## Model
+
+Per the research question of interest, we are interested in exploring factors related to price per mg of oxymorphone. We are also specifically asked to control for location and how drug price changes with it. Cities seemed to be too noisy to use as a location predictor. On the flip side, region did not seem to be associated with a significant change in drug prices. Therefore, state provides the best granularity of accounting for location in this instance.
+
+Linear regression models are usually a good standard approach to this, providing clear interpretations of how various predictors are associated with drug price. As seen in the EDA, however, many states have excessively small sample sizes. This produces corresponding $\hat{\beta}_{OLS}$ estimates with large variance. We would like to be able to *partially pool* information across states, letting us borrow information to help stabilize state estimates with small sample sizes.
+
+This prompts a **mixed effects model**, where we instead model the state coefficients as having been drawn $N(0, \tau^2)$.
+
+### Model Selection
+
+Based off of the results of the EDA, we want to initially fit a model with the following variables:
+
+- source
+- dose_per_mg
+- bulk_purchase
+- Primary_Reason
+- date_num
+- date_quarter
+
+In terms of the research question, we would also like to group based on location. There are 3 options for this:
+
+- Region
+- State
+- City
+
+In order to test whether keeping a variable in the model is "worth it", we may perform a likelihood ratio test for nested models. For adding $k$ fixed effects, the LRT test statistic follows a $\chi^2(k)$ distribution, and for adding $k$ random effects, the LRT test statistic follows a 50-50 mixture of $\chi^2(k)$ and $\chi^2(k + 1)$ distribution. For non-nested models, we can use BIC as a rough indicator of which model is "better". BIC balances likelihood of model with how parsimonious it is.
+
+First, let's decide what to group on for region:
+
+```{r}
+# Fit 3 models grouping on different location specificity
+mod_s <- lmer(data=df, log_ppm ~ (1 |state) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+mod_c <- lmer(data=df, log_ppm ~ (1 |city) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+mod_r <- lmer(data=df, log_ppm ~ (1 |USA_region) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+```
+
+```{r}
+BIC <- sapply(c(mod_s, mod_c, mod_r), BIC)
+re_results <- data.frame('Grouping' = c('State', 'City', 'Region'), 'BIC' = BIC)
+kable(re_results, caption = 'BIC for Models with Different Random Intercepts')
+```
+
+
+State provides the best level of BIC, so we will choose this for our grouping variable.
+
+Now let's investigate dropping various fixed effects and see results of our hypothesis tests:
+
+```{r}
+# Test date_num
+drop_date_num <- anova(mod_s,
+      lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+date_num_pval <- drop_date_num$`Pr(>Chisq)`[2]
+# Test date_quarter
+drop_quarter <- anova(lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + 
+                    bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+quarter_pval <- drop_quarter$`Pr(>Chisq)`[2]
+# Test dose_per_mg
+drop_dose <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + bulk_purchase + Primary_Reason + source, REML=F))
+dose_pval <- drop_dose$`Pr(>Chisq)`[2]
+# Test bulk purchase
+drop_bulk <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + Primary_Reason + source, REML=F))
+bulk_pval <- drop_bulk$`Pr(>Chisq)`[2]
+# Test primary reason
+drop_reason <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + source, REML=F))
+reason_pval <- drop_reason$`Pr(>Chisq)`[2]
+# Test source
+drop_source <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason, REML=F))
+source_pval <- drop_source$`Pr(>Chisq)`[2]
+```
+
+The outline is as follows:
+
+* Start with date_num, date_quarter, dose_per_mg, bulk_purchase, Primary_Reason, source
+* Perform a LRT between competing models with and without the date variable. Observe a p-value of `r round(date_num_pval, 3)` and fail to reject the null (simpler model). Drop `date_num` from the subsequent model tests
+* Perform a LRT between competing models with and without the quarter of the sale. Observe a p-value of `r round(quarter_pval, 3)` and fail to reject the null (simpler model). Drop `date_quarter` from the subsequent model tests
+* Perform a LRT between competing models with and without dose per mg. Observe a p-value of ~`r round(dose_pval, 3)` and reject the null (simpler model). Decide on model keeping `dose_per_mg`
+* Perform a LRT between competing models with and without the bulk purchase predictor. Observe a p-value of ~`r round(bulk_pval, 3)` and reject the null (simpler model). Decide on model keeping `bulk_purchase`
+* Perform a LRT between competing models with and without the primary reason predictor. Observe a p-value of `r round(reason_pval, 3)` and reject the null (simpler model). Decide on keeping `primary_reason` in the model
+* Perform a LRT between competing models with and without the source predictor. Observe a p-value of ~`r round(source_pval, 3)` and reject the null (simpler model). Decide on keeping `source` in the model 
+
+Thus these results suggest we want to drop `date_num` and `date_quarter`, while keeping
+
+* dose_per_mg
+* bulk_purchase
+* primary_reason
+* source
+
+We will now investigate random slopes in addition to random intercepts. We are having difficulties fitting a random slope for `dose_per_mg`, but we can check the random slope for bulk purchase:
+
+```{r}
+random_bulk <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (bulk_purchase |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+random_bulk$`Pr(>Chisq)`[2]  # Random slopes for bulk_purchase not helpful
+random_reason <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+                       lmer(data=df, log_ppm ~ (Primary_Reason |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+random_reason$`Pr(>Chisq)`[2]
+random_source <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
+                       lmer(data=df, log_ppm ~ (source |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+random_source$`Pr(>Chisq)`[2]
+print(paste('For testing between competing models with and without a random slope on '))
+```
+
+These results suggest that we should stick with a random intercept only.
+
+#### Model Specification
+
+$$log(y_{ij}) = \beta_{0,j} + \beta_{1} x_{ij1} + \beta_{2} x_{ij2} + \beta_{3} x_{ij3} + \beta_{4} x_{ij4} + \epsilon_{ij}$$
+
+$$
+\beta_{0,j} = \beta_0 + b_{0,j}, b_{0,j} \sim N(0,\tau^2)
+$$
+$$
+\epsilon_{ij} \perp b_{0,j} \overset{iid}{\sim} N(0,\sigma^2)
+$$
+
+This linear model estimates the log price per miligram $log(y)$ of oxymorphone for an invidual $i$ in state $j$ ($x_{ij}$). The following predictors are defined as:
+
+* $x_1$: Dosage strength in mg of the units purchased
+* $x_2$: Bulk purchase, an indicator for whether 10+ units were purchased at once
+* $x_3$: The primary reason for purchase. Factors include "blank", "left unanswered", "other or unknown", "self-treatment", "enjoyment", "resell", and "refuse to answer"
+* $x_4$: Source of information (allows for reporting of transactions). Factors include "unkown", "internet", "internet pharmacy", "heard it", and "personal"
+
+```{r}
+# mod1b.inf <- influence(mod1b, maxfun=1)
+# 
+# infIndexPlot(mod1b.inf, vars='Cook')
+# 
+# # Find the most influential observations
+# high_inf_idx <- order(cooks.distance(mod1b.inf), decreasing = TRUE)
+# 
+# # Take a look at some of the most influential observations
+# df[high_inf_idx[1:25], ]
+```
+
+
+```{r}
+#mod1 <- lmer(data=df, log_ppm ~ (1 | state) + date_num + mgstr + bulk_purchase + Primary_Reason + source)
+#mod1b <- lmer(data=df, log_ppm ~ (1 | state) + year + mgstr + bulk_purchase + Primary_Reason + source)
+# better_data <- df %>% filter(ppm > 0.2)
+# mod1c <- lmer(data=better_data, log_ppm ~ (1 | state) + date_num + year + mgstr + bulk_purchase + Primary_Reason + source)
+# qqmath(mod1c)
+```
+
+```{r}
+mod1 <- lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + source, REML=F)
+```
+
+
+#### Model Diagnostics
+```{r, fig.align='center', warning=FALSE, message=FALSE, error=FALSE}
+# resqq <- plot_resqq(mod1)
+# ranefci <- plot_ranef(mod1)
+# grid.arrange(resqq, ranefci, ncol = 2)
+```
+
+Model diagnostics discussions here.
