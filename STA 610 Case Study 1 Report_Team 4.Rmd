@@ -23,7 +23,7 @@ library(grid)
 library(ggplot2)
 library(lattice)
 # devtools::install_github("goodekat/redres")
-library(redres)
+#library(redres)
 library(stringr)
 library(influence.ME)
 ```
@@ -269,6 +269,7 @@ To consider whether we may want to include random slopes by state for our predic
 For out continuous variables (continuous date and dosage strength), in by-state plots we often saw strikingly similar patterns in predictor vs. response, suggesting that random slopes may not be necessary for these variables. 
 
 ### dose_per_mg
+
 ```{r, fig.align='center'}
 ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = dose_per_mg, y = log_ppm)) + 
   geom_point() +
@@ -277,6 +278,7 @@ ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Caro
 
 
 ### date_num
+
 ```{r, fig.align='center'}
 ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_num, y = log_ppm)) + 
   geom_point() +
@@ -308,8 +310,9 @@ ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Caro
 ```
 
 ### source
+
 ```{r}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = source, y = log_ppm, group = source)) + 
+ggplot(data = df %>% filter(state %in% c('Florida', 'Texas', 'North Carolina')), aes(x = source, y = log_ppm, group = source)) + 
   geom_boxplot() +
   facet_grid(~ state)
 ```
@@ -361,7 +364,26 @@ Per the research question of interest, we are interested in exploring factors re
 
 Linear regression models are usually a good standard approach to this, providing clear interpretations of how various predictors are associated with drug price. As seen in the EDA, however, many states have excessively small sample sizes. This produces corresponding $\hat{\beta}_{OLS}$ estimates with large variance. We would like to be able to *partially pool* information across states, letting us borrow information to help stabilize state estimates with small sample sizes.
 
-This prompts a **mixed effects model**, where we instead model the state coefficients as having been drawn $N(0, \tau^2)$. 
+This prompts a **mixed effects model**, where we instead model the state coefficients as having been drawn $N(0, \tau^2)$.
+
+### Model Selection
+
+Based off of the results of the EDA, we want to initially fit a model with the following variables:
+
+- source
+- dose_per_mg
+- bulk_purchase
+- Primary_Reason
+- date_num
+- date_quarter
+
+In terms of the research question, we would also like to group based on location. There are 3 options for this:
+
+- Region
+- State
+- City
+
+In order to test whether keeping a variable in the model is "worth it", we may perform a likelihood ratio test for nested models. For adding $k$ fixed effects, the LRT test statistic follows a $\chi^2(k)$ distribution, and for adding $k$ random effect, the LRT test statistic follows a 50-50 mixture of $\chi^2(k)$ and $\chi^2(k + 1)$ distribution. For non-nested models, we can use BIC as a rough indicator of which model is "better". BIC balances likelihood of model with how parsimonious it is.
 
 #### Model Specification
 
