@@ -385,6 +385,25 @@ In terms of the research question, we would also like to group based on location
 
 In order to test whether keeping a variable in the model is "worth it", we may perform a likelihood ratio test for nested models. For adding $k$ fixed effects, the LRT test statistic follows a $\chi^2(k)$ distribution, and for adding $k$ random effect, the LRT test statistic follows a 50-50 mixture of $\chi^2(k)$ and $\chi^2(k + 1)$ distribution. For non-nested models, we can use BIC as a rough indicator of which model is "better". BIC balances likelihood of model with how parsimonious it is.
 
+First, let's decide what to group on for region:
+
+```{r}
+# Fit 3 models grouping on different location specificity
+mod_s <- lmer(data=df, log_ppm ~ (1 |state) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+print(paste("BIC for grouping on state", round(BIC(mod_s), 3)))
+
+mod_c <- lmer(data=df, log_ppm ~ (1 |city) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+print(paste("BIC for grouping on city", round(BIC(mod_c), 3)))
+
+mod_r <- lmer(data=df, log_ppm ~ (1 |USA_region) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+print(paste("BIC for grouping on region", round(BIC(mod_r), 3)))
+```
+
+State provides the best level of BIC, so we will choose this for our grouping variable.
+
+
+Now let's investigate dropping various
+
 #### Model Specification
 
 $$y_{ij} = \beta_{0,j} + \beta_{1} date_num + \beta_{2} mgstr + \beta_{3} bulk_purchase + \beta_{4} Primary_Reason + \beta_{5} source + \epsilon_{ij}$$
