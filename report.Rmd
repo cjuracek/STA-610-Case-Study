@@ -10,7 +10,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE) 
 ```
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
