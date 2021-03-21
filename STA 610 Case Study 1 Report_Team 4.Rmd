@@ -230,15 +230,22 @@ Model Selection discussions here.
 
 ```{r}
 mod1b.inf <- influence(mod1b, maxfun=1)
+
 infIndexPlot(mod1b.inf, vars='Cook')
+
+# Find the most influential observations
+high_inf_idx <- order(cooks.distance(mod1b.inf), decreasing = TRUE)
+
+# Take a look at some of the most influential observations
+df[high_inf_idx[1:25], ]
 ```
 
 
 ```{r}
 #mod1 <- lmer(data=df, log_ppm ~ (1 | state) + date_num + mgstr + bulk_purchase + Primary_Reason + source)
 #mod1b <- lmer(data=df, log_ppm ~ (1 | state) + year + mgstr + bulk_purchase + Primary_Reason + source)
-big_data <- df[!influential,]
-mod1c <- lmer(data=big_data, log_ppm ~ (1 | state) + year + mgstr + bulk_purchase + Primary_Reason + source)
+better_data <- df %>% filter(ppm > 0.2)
+mod1c <- lmer(data=better_data, log_ppm ~ (1 | state) + date_num + year + mgstr + bulk_purchase + Primary_Reason + source)
 qqmath(mod1c)
 ```
 
