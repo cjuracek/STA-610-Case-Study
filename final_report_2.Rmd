@@ -1,5 +1,5 @@
 ---
-title: \vspace{-1.5cm} "STA610 Case Study 1 Team 4 Report"
+title: \vspace{-1.5cm} \textbf{STA610 Case Study 1 Team 4 Report}
 author:
 - Cole Juracek (Programmer)
 - Lauren Palazzo (Writer)
@@ -31,7 +31,7 @@ df <- streetrx %>% filter(api_temp == "oxymorphone", !is.na(ppm))
 
 This study is an exploration of the relationship between the sale price per milligram of diverted pharmaceutical substances and other factors related to the sale, as reflected in self-reported data from the website StreetRx. StreetRx maintains a partnership with the Researched Abuse, Diversion, and Addiction-Related Surveillance System (RADARS), which aims for these data to inform public health measures such as health policy related to illicit drugs. 
 
-[insert something about our specific drug here]
+Our drug of interest in this study is oxymorphone. Oxymorphone is used to relieve moderate to severe pain in people whose pain is not controlled with other medications, and may be habit-forming with prolonged use. Our aim is to investigate factors related to the price per mg of oxymorphone, accounting for potential clustering by location and exploring heterogeneity in pricing by location.
 
 Among the data available to us are location data pertaining to the city, state, and United States region of the sale. These variables present a natural grouping structure for the price data, which suggest that we employ a hierarchical model in our analysis. The benefits of a hierarchical model include the ability to "borrow information" from the data set as a whole to stabilize estimates of price for groups (e.g., states) with relatively small sample size, and to establish a estimated distribution of how price varies with respect to groups, which would in theory allow generalization to new groups not included in the original analysis. 
 # Exploratory data analysis and data cleaning
@@ -276,13 +276,8 @@ Model selection is omitted for brevity (see code appendix for full demonstration
 Our final model is as specified:
 
 $$log(y_{ij}) = \beta_{0,j} + \beta_{1} x_{ij1} + \beta_{2} x_{ij2} + \beta_{3} x_{ij3} + \beta_{4} x_{ij4} + \epsilon_{ij}$$
-
-$$
-\beta_{0,j} = \beta_0 + b_{0,j}, b_{0,j} \sim N(0,\tau^2)
-$$
-$$
-\epsilon_{ij} \perp b_{0,j} \overset{iid}{\sim} N(0,\sigma^2)
-$$
+$$\beta_{0,j} = \beta_0 + b_{0,j}, b_{0,j} \sim N(0,\tau^2)$$
+$$\epsilon_{ij} \perp b_{0,j} \overset{iid}{\sim} N(0,\sigma^2)$$
 
 This linear model estimates the log price per miligram $log(y)$ of oxymorphone for an invidual $i$ in state $j$ ($x_{ij}$). The following predictors are defined as:
 
