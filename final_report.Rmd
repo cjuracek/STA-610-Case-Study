@@ -208,19 +208,7 @@ labs(title="log PPM by region", x="region",y="Log PPM")
 
 ### City
 
-We find that there are many cities with a sample size of one, which makes `city` perhaps not the most natural choice for a grouping variable. Example visualizations shown here are for all cities in the states of Florida and California. 
-
-```{r, fig.align='center'}
-fl_lppmbycity <- ggplot(df[df$state=="Florida",], aes(x=log_ppm, y=reorder(city, city, length))) +
-geom_boxplot() +
-labs(title="log PPM by city (FL)", x="Log PPM",y="city")
-ca_lppmbycity <- ggplot(df[df$state=="California",], aes(x=reorder(city, city, length), y=log_ppm)) +
-geom_boxplot() +
-labs(title="log PPM by city (CA)", x="Log PPM",y="city")
-grid.arrange(fl_lppmbycity, ca_lppmbycity, ncol= 2)
-```
-
-We decided to focus on `state` as our primary candidate for a grouping variable moving forward. 
+We find that there are many cities with a sample size of one, which makes `city` perhaps not the most natural choice for a grouping variable (please see appendix). We decided to focus on `state` as our primary candidate for a grouping variable moving forward. 
 
 ## Exploratory data analysis for random slopes
 
@@ -276,39 +264,6 @@ ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Caro
   geom_boxplot() +
   facet_grid(~ state) + 
   theme(axis.text.x = element_text(angle = 90))
-```
-
-## More EDA: slope and intercept distributions for predictors by state
-
-To get a better sense of how state-level groups and slopes are distributed, we created the following intercepts for our coninuous variables:
-
-### Dose strength variable
-
-```{r fig.width=3}
-group_int_list <- NULL 
-group_slope_list <- NULL
-for(statej in unique(df$state)) {
-    m <- lm(data = df[df$state==statej, ], log_ppm ~ dose_per_mg)
-    group_int_list <- c(group_int_list, coef(m)[1])
-    group_slope_list <- c(group_slope_list, coef(m)[2])
-}
-hist(group_int_list)
-hist(group_slope_list)
-```
-
-### Continuous date variable
-
-```{r fig.width=3}
-group_int_list <- NULL 
-group_slope_list <- NULL
-for(statej in unique(df$state)) {
-    m <- lm(data = df[df$state==statej, ], log_ppm ~ date_num)
-    group_int_list <- c(group_int_list, coef(m)[1])
-    group_slope_list <- c(group_slope_list, coef(m)[2])
-}
-
-hist(group_int_list)
-hist(group_slope_list)
 ```
 
 ## Model
@@ -488,4 +443,39 @@ From the result of the random effects, we can see that the random intercept for 
 
 ## Appendix
 ```{r, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+# Example visualization shown here are for all cities in the state of Florida. 
+
+ggplot(df[df$state=="Florida",], aes(x=log_ppm, y=reorder(city, city, length))) +
+geom_boxplot() +
+labs(title="log PPM by city (FL)", x="Log PPM",y="city")
+
+# More EDA: slope and intercept distributions for predictors by state
+
+# To get a better sense of how state-level groups and slopes are distributed, we created the following intercepts for our coninuous variables:
+
+### Dose strength variable
+
+group_int_list <- NULL 
+group_slope_list <- NULL
+for(statej in unique(df$state)) {
+    m <- lm(data = df[df$state==statej, ], log_ppm ~ dose_per_mg)
+    group_int_list <- c(group_int_list, coef(m)[1])
+    group_slope_list <- c(group_slope_list, coef(m)[2])
+}
+hist(group_int_list)
+hist(group_slope_list)
+
+### Continuous date variable
+
+group_int_list <- NULL 
+group_slope_list <- NULL
+for(statej in unique(df$state)) {
+    m <- lm(data = df[df$state==statej, ], log_ppm ~ date_num)
+    group_int_list <- c(group_int_list, coef(m)[1])
+    group_slope_list <- c(group_slope_list, coef(m)[2])
+}
+
+hist(group_int_list)
+hist(group_slope_list)
+
 ```
