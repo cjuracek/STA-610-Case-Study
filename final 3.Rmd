@@ -1,5 +1,5 @@
 ---
-title: "\vspace{-1.5cm} \textbf{STA610 Case Study 1 Team 4 Report}"
+title: STA610 Case Study 1 Team 4 Report
 author:
 - Cole Juracek (Programmer)
 - Lauren Palazzo (Writer)
@@ -7,11 +7,11 @@ author:
 - Fan Zhu (Presenter)
 date: "`r Sys.Date()`"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
 fontsize: 11pt
-geometry: margin=2cm
+geometry: margin=1.5cm
 ---
 
 ```{r setup, include=FALSE}
@@ -192,7 +192,7 @@ We see that some states with small sample sizes have distributions of `log_price
 
 Viewing a similar plot for the regions of the USA, we do see some variability in price among regions, but it is not as pronounced as for the states.
 
-```{r, fig.align='center', fig.height = 2.5}
+```{r, fig.align='center', fig.height = 1.5}
 ggplot(df, aes(x=reorder(USA_region, USA_region, length), y=log_ppm, fill=USA_region)) +
 geom_boxplot() +
 labs(title="log PPM by region", x="region",y="Log PPM")
@@ -305,7 +305,7 @@ mod_final <- lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + 
 
 
 #### Model Diagnostics
-```{r, fig.align='center', warning=FALSE, message=FALSE, error=FALSE}
+```{r error=FALSE, fig.align='center', fig.height=, message=FALSE, warning=FALSE, fig.height=2}
 resqq <- plot_resqq(mod_final)
 ranefci <- plot_ranef(mod_final)
 grid.arrange(resqq, ranefci, ncol = 2)
@@ -361,17 +361,20 @@ knitr::kable(ICC, col.names = "Intraclass Correlation")
 ```
 Intraclass correlation is 0.044, which means values are not very similar from the same state.
 
-```{r, fig.align='center', fig.height=8}
+```{r, fig.align='center', fig.height=4}
 plotREsim(REsim(mod_final,n.sims=100),stat='median',sd=TRUE, labs = TRUE)
 ```
-From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Arizona is the lowest and this intercept is also significant.
+From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Arizona is the lowest and this intercept is also significant. 
 
+## Limitation
+
+Our analysis has several limitations. Our filtering of the `log_ppm` variable to non-extreme values must be kept in mind, as we are essentially modeling typical values only, so some unusual price values may not be predicted correctly by our model. Small sample sizes for some states are not ideal, although our hierarchical model structure helps to mitigate this issue. User-input data is naturally messy and should be taken with a grain of salt. Furthermore, our sample is essentially self-selected (people who choose to enter their data into the StreetRx web site) rather than randomly sampled, and this may affect the generalizability of our results.
+
+\newpage
 ## Appendix
 
 ```{r, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 ```
-
-# Appendix
 
 ## Code 
 
@@ -462,7 +465,7 @@ ggplot(df[df$state=="Florida",], aes(x=log_ppm, y=reorder(city, city, length))) 
 
 
 ### More EDA: slope and intercept distributions for predictors by state
-```{r}
+```{r, fig.width=3}
 # To get a better sense of how state-level groups and slopes are distributed, we created the following intercepts for our coninuous variables:
 
 ### Dose strength variable
@@ -474,7 +477,7 @@ for(statej in unique(df$state)) {
     group_int_list <- c(group_int_list, coef(m)[1])
     group_slope_list <- c(group_slope_list, coef(m)[2])
 }
-par(mfrow=c(1,1))
+
 hist(group_int_list)
 hist(group_slope_list)
 
