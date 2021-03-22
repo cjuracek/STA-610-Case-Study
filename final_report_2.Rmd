@@ -34,13 +34,14 @@ This study is an exploration of the relationship between the sale price per mill
 Our drug of interest in this study is oxymorphone. Oxymorphone is used to relieve moderate to severe pain in people whose pain is not controlled with other medications, and may be habit-forming with prolonged use. Our aim is to investigate factors related to the price per mg of oxymorphone, accounting for potential clustering by location and exploring heterogeneity in pricing by location.
 
 Among the data available to us are location data pertaining to the city, state, and United States region of the sale. These variables present a natural grouping structure for the price data, which suggest that we employ a hierarchical model in our analysis. The benefits of a hierarchical model include the ability to "borrow information" from the data set as a whole to stabilize estimates of price for groups (e.g., states) with relatively small sample size, and to establish a estimated distribution of how price varies with respect to groups, which would in theory allow generalization to new groups not included in the original analysis. 
+
 # Exploratory data analysis and data cleaning
 
 ## Data cleaning
 
 ### Group variables
 
-We performed an initial examination of two grouping variables, `state` and `USA_region`. The state North Dakota had only one observation, and as such was not considered a well-defined "group" for which a variance could be estimated; thus this state's observation was removed. States labeled simply as "USA" were recoded to "Unknown". Region was also sometimes labeled as uknown or other; these observations coincided with the unknown states (see appendix Table X). (The variable `city` as a grouping variable is addressed later in the report.)
+We performed an initial examination of two grouping variables, `state` and `USA_region`. The state North Dakota had only one observation, and as such was not considered a well-defined "group" for which a variance could be estimated; thus this state's observation was removed. States labeled simply as "USA" were recoded to "Unknown". Region was also sometimes labeled as uknown or other; these observations coincided with the unknown states (see appendix). (The variable `city` as a grouping variable is addressed later in the report.)
 
 ```{r, echo = FALSE}
 # cleaning state:
@@ -348,6 +349,8 @@ dotplot(ranef(mod_final, condVar=TRUE))$state
 ```
 From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Arizona is the lowest and this intercept is also significant.
 
+Our analysis has several limitations. Our filtering of the `log_ppm` variable to non-extreme values must be kept in mind, as we are essentially modeling typical values only, so some unusual price values may not be predicted correctly by our model. Small sample sizes for some states are not ideal, although our hierarchical model structure helps to mitigate this issue. User-input data is naturally messy and should be taken with a grain of salt. Furthermore, our sample is essentially self-selected (people who choose to enter their data into the StreetRx web site) rather than randomly sampled, and this may affect the generalizability of our results. 
+
 # Appendix
 
 ## Code 
@@ -356,7 +359,12 @@ From the result of the random effects, we can see that the random intercept for 
 
 ```
 
-## Visualizations 
+## Visualizations, etc.
+
+```{r}
+#the state-by-region table of coutns below
+table(df$state, df$USA_region)
+```
 
 ### Date variable  
 ```{r}
