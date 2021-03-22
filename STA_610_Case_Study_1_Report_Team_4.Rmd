@@ -18,7 +18,17 @@ knitr::opts_chunk$set(echo = FALSE, cache=TRUE, fig.height = 3)
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(pacman)
-pacman::p_load(tidyverse, lme4, gridExtra, grid, ggplot2, lattice, redres, stringr, influence.ME, knitr)
+pacman::p_load(tidyverse, 
+               lme4, 
+               gridExtra, 
+               grid, 
+               ggplot2, 
+               lattice, 
+               redres, 
+               stringr, 
+               influence.ME, 
+               knitr, 
+               merTools)
 # devtools::install_github("goodekat/redres")
 ```
 
@@ -164,7 +174,7 @@ df <- df %>% rename(dose_per_mg = mgstr)
 
 We are considering fitting a hierarchical model with a response variable that has normally distributed errors, and so we would like our response variable, here `ppm`, or price per milligram, to be close to normally-distributed. The histogram of the `ppm` is extremely right skewed (not unexpected for data related to financial measures such as price, salary, earnings, etc.), while the distribution of the log(`ppm`) looks roughly normal. Thus, we will use `log_ppm` as the dependent variable in our model.
 
-```{r, fig.height=2.5, fig.align='center'}
+```{r, fig.height=2, fig.align='center'}
 # log transform ppm
 df$log_ppm <- log(df$ppm)
 hist_ppm <- ggplot(df, aes(x=ppm)) + 
@@ -202,7 +212,7 @@ We see that some states with small sample sizes have distributions of `log_price
 
 Viewing a similar plot for the regions of the USA, we do see some variability in price among regions, but it is not as pronounced as for the states.
 
-```{r, fig.align='center', fig.height = 2.5}
+```{r, fig.align='center', fig.height = 2}
 ggplot(df, aes(x=reorder(USA_region, USA_region, length), y=log_ppm, fill=USA_region)) +
 geom_boxplot() +
 labs(title="log PPM by region", x="region",y="Log PPM")
@@ -219,15 +229,17 @@ To consider whether we may want to include random slopes by state for our predic
 For out continuous variables (continuous date and dosage strength), in by-state plots we often saw strikingly similar patterns in predictor vs. response, suggesting that random slopes may not be necessary for these variables. 
 
 ### dose_per_mg & date_num
-```{r, fig.align='center', fig.height = 2.5}
-plot_dose_per_mg <- ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = dose_per_mg, y = log_ppm)) + 
+```{r, fig.align='center', fig.height = 2.5, warning=FALSE, message=FALSE}
+plot_dose_per_mg <- ggplot(data = df[df$state=="Florida" | df$state=="North Carolina",], aes(x = dose_per_mg, y = log_ppm)) + 
   geom_point() +
+  geom_smooth(method=lm) +
   facet_grid(~ state)
 ```
 
-```{r, fig.align='center', fig.height = 2.5}
-plot_date_num <- ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_num, y = log_ppm)) + 
+```{r, fig.align='center', fig.height = 2.5, warning=FALSE, message=FALSE}
+plot_date_num <- ggplot(data = df[df$state=="Florida" | df$state=="North Carolina",], aes(x = date_num, y = log_ppm)) + 
   geom_point() +
+  geom_smooth(method=lm) +
   facet_grid(~ state)
 
 grid.arrange(plot_dose_per_mg, plot_date_num, ncol = 2)
@@ -443,6 +455,8 @@ Intraclass correlation is 0.044, which means values are not very similar from th
 
 ```{r, fig.align='center', fig.height=8}
 dotplot(ranef(mod_final, condVar=TRUE))$state
+
+#plotREsim(REsim(mod_final,n.sims=100),stat='median',sd=TRUE, labs = TRUE)
 ```
 From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Arizona is the lowest and this intercept is also significant.
 
