@@ -8,8 +8,6 @@ author:
 date: "`r Sys.Date()`"
 output:
   pdf_document: default
-  html_document:
-    df_print: paged
 fontsize: 11pt
 geometry: margin=2cm
 ---
