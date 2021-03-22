@@ -147,9 +147,9 @@ knitr::kable(reason_df_2, col.names = c("Level", "Freq"))
 
 ### Drug strength variable
 
-We renamed this variable `dose_per_mg` to make its meaning clearer to the reader. This is a continuous variable that nevertheless tends to take on only a few values, as depicted in the histogram. We considered a recoding of this variable into levels, but decided against it as the dose per milligram technically may take on any value and the generalizability of our model may be improved if we are able to consider dose levels that are in a realistic range yet not present in our current data. 
+We renamed this variable `dose_per_mg` to make its meaning clearer to the reader. This is a continuous variable that nevertheless tends to take on only a few values. We considered a recoding of this variable into levels, but decided against it as the dose per milligram technically may take on any value and the generalizability of our model may be improved if we are able to consider dose levels that are in a realistic range yet not present in our current data. 
 
-```{r, fig.align='center', fig.height=2.5}
+```{r, fig.align='center', fig.height=2, include = FALSE}
 ggplot(df, aes(x=mgstr)) + 
  geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 50)+
  geom_density(alpha=.2, fill="red") +
@@ -216,54 +216,57 @@ To consider whether we may want to include random slopes by state for our predic
 
 For out continuous variables (continuous date and dosage strength), in by-state plots we often saw strikingly similar patterns in predictor vs. response, suggesting that random slopes may not be necessary for these variables. 
 
-### dose_per_mg
+### dose_per_mg & date_num
 ```{r, fig.align='center', fig.height = 2.5}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = dose_per_mg, y = log_ppm)) + 
+plot_dose_per_mg <- ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = dose_per_mg, y = log_ppm)) + 
   geom_point() +
   facet_grid(~ state)
 ```
 
-### date_num
 ```{r, fig.align='center', fig.height = 2.5}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_num, y = log_ppm)) + 
+plot_date_num <- ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_num, y = log_ppm)) + 
   geom_point() +
   facet_grid(~ state)
+
+grid.arrange(plot_dose_per_mg, plot_date_num, ncol = 2)
 ```
 
 For categorical variables, we generally observed was there was indeed variation among the states, but it was not clear whether this variation had any well-defined structure. It was not clear whether our models would benefit from random slopes for these variables, so we decided to further investigate this in our modeling process.  
 
-### bulk_purchase
+### bulk_purchase & date_quarter
 ```{r, fig.align='center', fig.height = 2.5}
 # categorical variables -- looking at South only
 set.seed(42)
 states <- sample(df$state, 5)
-ggplot(data = df %>% filter(state %in% states), aes(x = bulk_purchase, y = log_ppm)) + 
+box_bulk_purchase <- ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = bulk_purchase, y = log_ppm, group = bulk_purchase)) + 
   geom_boxplot() +
   facet_grid(~ state) +
   theme(axis.text.x = element_text(angle = 90))
 ```
 
-### date_quarter
 ```{r, fig.height = 2.5, fig.align='center'}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_quarter, y = log_ppm, group = date_quarter)) + 
+box_date_quarter <- ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_quarter, y = log_ppm, group = date_quarter)) + 
   geom_boxplot() +
   facet_grid(~ state)
+
+grid.arrange(box_bulk_purchase, box_date_quarter, ncol=2)
 ```
 
-### Primary_Reason
+### Primary_Reason & source
 ```{r, fig.height = 2.5, fig.align='center'}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = Primary_Reason, y = log_ppm, group = Primary_Reason)) + 
+box_Primary_Reason <- ggplot(data = df[df$state=="Florida" | df$state=="North Carolina",], aes(x = Primary_Reason, y = log_ppm, group = Primary_Reason)) + 
   geom_boxplot() +
   facet_grid(~ state) +
   theme(axis.text.x = element_text(angle = 90))
 ```
 
-### source
 ```{r, fig.height = 2.5, fig.align='center'}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = source, y = log_ppm, group = source)) + 
+box_source <- ggplot(data = df[df$state=="Florida" | df$state=="North Carolina",], aes(x = source, y = log_ppm, group = source)) + 
   geom_boxplot() +
   facet_grid(~ state) + 
   theme(axis.text.x = element_text(angle = 90))
+
+grid.arrange(box_Primary_Reason, box_source, ncol = 2)
 ```
 
 ## Model
