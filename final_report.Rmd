@@ -7,30 +7,24 @@ author:
 - Fan Zhu (Presenter)
 date: "`r Sys.Date()`"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, cache=TRUE, fig.height = 3)
 ```
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-library(tidyverse)
-library(lme4)
-library(gridExtra)
-library(grid)
-library(ggplot2)
-library(lattice)
+library(pacman)
+pacman::p_load(tidyverse, lme4, gridExtra, grid, ggplot2, lattice, redres, stringr, influence.ME, knitr)
 # devtools::install_github("goodekat/redres")
-library(redres)
-library(stringr)
-library(influence.ME)
 ```
 
 ```{r, echo = FALSE}
-load("~/Documents/Spring 2021/STA 610 - H Models/cs1/streetrx.RData")
-df <- streetrx %>% filter(api_temp=="oxymorphone", !is.na(ppm))
+load("streetrx.rdata")
+df <- streetrx %>% filter(api_temp == "oxymorphone", !is.na(ppm))
 ```
 
 # Introduction
@@ -40,7 +34,6 @@ This study is an exploration of the relationship between the sale price per mill
 [insert something about our specific drug here]
 
 Among the data available to us are location data pertaining to the city, state, and United States region of the sale. These variables present a natural grouping structure for the price data, which suggest that we employ a hierarchical model in our analysis. The benefits of a hierarchical model include the ability to "borrow information" from the data set as a whole to stabilize estimates of price for groups (e.g., states) with relatively small sample size, and to establish a estimated distribution of how price varies with respect to groups, which would in theory allow generalization to new groups not included in the original analysis. 
-
 # Exploratory data analysis and data cleaning
 
 ## Data cleaning
@@ -66,7 +59,6 @@ df$state <- recode_factor(df$state, "USA" = "Unknown")
 # table(df$state, df$USA_region)
 ```
 
-
 ### Date variable
 
 We considered two different ways to engineer the date-of-sale feature. One intuitive and commonly-used approach would be to recode this as a continuous variables counting days from some start date, the intent of which would be to capture the influence of inflation for this price data that spans years. Another approach would be to consider whether there might be an effect of seasonality on drug prices. 
@@ -82,17 +74,14 @@ tempdf <- df %>% select(date_num, price_date)
 df <- df %>% filter(date_num >= 0)
 ```
 
-
 ```{r}
 df$date_quarter <- as.numeric(substr(df$yq_pdate, 5, 5))
 ```
-
 
 ```{r}
 hist(df$date_num)
 knitr::kable(table(df$date_quarter))
 ```
-
 
 ### Sources variable
 
@@ -167,7 +156,6 @@ hist(df$mgstr)
 df <- df %>% rename(dose_per_mg = mgstr)
 ```
 
-
 ### Response variable: Price per milligram
 
 We are considering fitting a hierarchical model with a response variable that has normally distributed errors, and so we would like our response variable, here `ppm`, or price per milligram, to be close to normally-distributed. The histogram of the `ppm` is extremely right skewed (not unexpected for data related to financial measures such as price, salary, earnings, etc.), while the distribution of the log(`ppm`) looks roughly normal. Thus, we will use `log_ppm` as the dependent variable in our model.
@@ -189,7 +177,6 @@ In order to cut off extreme price values that may skew the results for typical p
 ```{r}
 df <- df %>% filter(log_ppm > -2 & log_ppm < 2)
 ```
-
 
 ## Exploratory data analysis for random intercepts
 
@@ -246,7 +233,6 @@ ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Caro
   facet_grid(~ state)
 ```
 
-
 ### date_num
 ```{r, fig.align='center'}
 ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_num, y = log_ppm)) + 
@@ -259,9 +245,12 @@ For categorical variables, we generally observed was there was indeed variation 
 ### bulk_purchase
 ```{r, fig.align='center'}
 # categorical variables -- looking at South only
-ggplot(data = df[df$USA_region == "South",], aes(x = bulk_purchase, y = log_ppm)) + 
+set.seed(42)
+states <- sample(df$state, 5)
+ggplot(data = df %>% filter(state %in% states), aes(x = bulk_purchase, y = log_ppm)) + 
   geom_boxplot() +
-  facet_grid(~ state)
+  facet_grid(~ state) +
+  theme(axis.text.x = element_text(angle = 60))
 ```
 
 ### date_quarter
@@ -275,15 +264,18 @@ ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Caro
 ```{r}
 ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = Primary_Reason, y = log_ppm, group = Primary_Reason)) + 
   geom_boxplot() +
-  facet_grid(~ state)
+  facet_grid(~ state) +
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 ### source
 ```{r}
 ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = source, y = log_ppm, group = source)) + 
   geom_boxplot() +
-  facet_grid(~ state)
+  facet_grid(~ state) + 
+  theme(axis.text.x = element_text(angle = 90))
 ```
+
 ## More EDA: slope and intercept distributions for predictors by state
 
 To get a better sense of how state-level groups and slopes are distributed, we created the following intercepts for our coninuous variables:
@@ -293,12 +285,10 @@ To get a better sense of how state-level groups and slopes are distributed, we c
 ```{r}
 group_int_list <- NULL 
 group_slope_list <- NULL
-for(statej in
-  unique(df$state))
-{
-m <- lm(data = df[df$state==statej, ], log_ppm ~ dose_per_mg)
-group_int_list <- c(group_int_list, coef(m)[1])
-group_slope_list <- c(group_slope_list, coef(m)[2])
+for(statej in unique(df$state)) {
+    m <- lm(data = df[df$state==statej, ], log_ppm ~ dose_per_mg)
+    group_int_list <- c(group_int_list, coef(m)[1])
+    group_slope_list <- c(group_slope_list, coef(m)[2])
 }
 hist(group_int_list)
 hist(group_slope_list)
@@ -309,13 +299,12 @@ hist(group_slope_list)
 ```{r}
 group_int_list <- NULL 
 group_slope_list <- NULL
-for(statej in
-  unique(df$state))
-{
-m <- lm(data = df[df$state==statej, ], log_ppm ~ date_num)
-group_int_list <- c(group_int_list, coef(m)[1])
-group_slope_list <- c(group_slope_list, coef(m)[2])
+for(statej in unique(df$state)) {
+    m <- lm(data = df[df$state==statej, ], log_ppm ~ date_num)
+    group_int_list <- c(group_int_list, coef(m)[1])
+    group_slope_list <- c(group_slope_list, coef(m)[2])
 }
+
 hist(group_int_list)
 hist(group_slope_list)
 ```
@@ -361,7 +350,6 @@ BIC <- sapply(c(mod_s, mod_c, mod_r), BIC)
 re_results <- data.frame('Grouping' = c('State', 'City', 'Region'), 'BIC' = BIC)
 kable(re_results, caption = 'BIC for Models with Different Random Intercepts')
 ```
-
 
 State provides the best level of BIC, so we will choose this for our grouping variable.
 
@@ -448,28 +436,7 @@ This linear model estimates the log price per miligram $log(y)$ of oxymorphone f
 * $x_4$: Source of information (allows for reporting of transactions). Factors include "unkown", "internet", "internet pharmacy", "heard it", and "personal"
 
 ```{r}
-# mod1b.inf <- influence(mod1b, maxfun=1)
-# 
-# infIndexPlot(mod1b.inf, vars='Cook')
-# 
-# # Find the most influential observations
-# high_inf_idx <- order(cooks.distance(mod1b.inf), decreasing = TRUE)
-# 
-# # Take a look at some of the most influential observations
-# df[high_inf_idx[1:25], ]
-```
-
-
-```{r}
-#mod1 <- lmer(data=df, log_ppm ~ (1 | state) + date_num + mgstr + bulk_purchase + Primary_Reason + source)
-#mod1b <- lmer(data=df, log_ppm ~ (1 | state) + year + mgstr + bulk_purchase + Primary_Reason + source)
-# better_data <- df %>% filter(ppm > 0.2)
-# mod1c <- lmer(data=better_data, log_ppm ~ (1 | state) + date_num + year + mgstr + bulk_purchase + Primary_Reason + source)
-# qqmath(mod1c)
-```
-
-```{r}
-mod1 <- lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + source, REML=F)
+mod_final <- lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
 ```
 
 
@@ -542,5 +509,5 @@ dotplot(ranef(mod_final, condVar=TRUE))$state
 From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Arizona is the lowest and this intercept is also significant.
 
 ## Appendix
-```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+```{r, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 ```
