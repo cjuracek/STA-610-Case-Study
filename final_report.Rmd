@@ -1,9 +1,9 @@
 ---
 title: "STA610 Case Study 1 Team 4 Report"
 author:
-- Cole Juracek (Coordinator)
-- Lauren Palazzo (Programmer)
-- Lingyu Zhou (Checker)
+- Cole Juracek (Programmer)
+- Lauren Palazzo (Writer)
+- Lingyu Zhou (Checker + Coordinator)
 - Fan Zhu (Presenter)
 date: "`r Sys.Date()`"
 output:
@@ -250,7 +250,7 @@ states <- sample(df$state, 5)
 ggplot(data = df %>% filter(state %in% states), aes(x = bulk_purchase, y = log_ppm)) + 
   geom_boxplot() +
   facet_grid(~ state) +
-  theme(axis.text.x = element_text(angle = 60))
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 ### date_quarter
@@ -282,7 +282,7 @@ To get a better sense of how state-level groups and slopes are distributed, we c
 
 ### Dose strength variable
 
-```{r}
+```{r fig.width=3}
 group_int_list <- NULL 
 group_slope_list <- NULL
 for(statej in unique(df$state)) {
@@ -296,7 +296,7 @@ hist(group_slope_list)
 
 ### Continuous date variable
 
-```{r}
+```{r fig.width=3}
 group_int_list <- NULL 
 group_slope_list <- NULL
 for(statej in unique(df$state)) {
@@ -400,24 +400,9 @@ Thus these results suggest we want to drop `date_num` and `date_quarter`, while 
 * primary_reason
 * source
 
-We will now investigate random slopes in addition to random intercepts. We are having difficulties fitting a random slope for `dose_per_mg`, but we can check the random slope for bulk purchase:
-
-```{r}
-random_bulk <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
-      lmer(data=df, log_ppm ~ (bulk_purchase |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
-random_bulk$`Pr(>Chisq)`[2]  # Random slopes for bulk_purchase not helpful
-random_reason <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
-                       lmer(data=df, log_ppm ~ (Primary_Reason |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
-random_reason$`Pr(>Chisq)`[2]
-random_source <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
-                       lmer(data=df, log_ppm ~ (source |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
-random_source$`Pr(>Chisq)`[2]
-print(paste('For testing between competing models with and without a random slope on '))
-```
-
-These results suggest that we should stick with a random intercept only.
-
 #### Model Specification
+
+Our final model is as specified:
 
 $$log(y_{ij}) = \beta_{0,j} + \beta_{1} x_{ij1} + \beta_{2} x_{ij2} + \beta_{3} x_{ij3} + \beta_{4} x_{ij4} + \epsilon_{ij}$$
 
