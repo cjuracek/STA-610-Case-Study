@@ -1,5 +1,5 @@
 ---
-title: "STA610 Case Study 1 Team 4 Report"
+title: \vspace{-1.5cm} "STA610 Case Study 1 Team 4 Report"
 author:
 - Cole Juracek (Programmer)
 - Lauren Palazzo (Writer)
@@ -327,17 +327,7 @@ drop_source <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_pur
 source_pval <- drop_source$`Pr(>Chisq)`[2]
 ```
 
-The outline is as follows:
-
-* Start with date_num, date_quarter, dose_per_mg, bulk_purchase, Primary_Reason, source
-* Perform a LRT between competing models with and without the date variable. Observe a p-value of `r round(date_num_pval, 3)` and fail to reject the null (simpler model). Drop `date_num` from the subsequent model tests
-* Perform a LRT between competing models with and without the quarter of the sale. Observe a p-value of `r round(quarter_pval, 3)` and fail to reject the null (simpler model). Drop `date_quarter` from the subsequent model tests
-* Perform a LRT between competing models with and without dose per mg. Observe a p-value of ~`r round(dose_pval, 3)` and reject the null (simpler model). Decide on model keeping `dose_per_mg`
-* Perform a LRT between competing models with and without the bulk purchase predictor. Observe a p-value of ~`r round(bulk_pval, 3)` and reject the null (simpler model). Decide on model keeping `bulk_purchase`
-* Perform a LRT between competing models with and without the primary reason predictor. Observe a p-value of `r round(reason_pval, 3)` and reject the null (simpler model). Decide on keeping `primary_reason` in the model
-* Perform a LRT between competing models with and without the source predictor. Observe a p-value of ~`r round(source_pval, 3)` and reject the null (simpler model). Decide on keeping `source` in the model 
-
-Thus these results suggest we want to drop `date_num` and `date_quarter`, while keeping: dose_per_mg, bulk_purchase, primary_reason, source
+Model selection is omitted for brevity (see code appendix for full demonstration). Essentially we compared nested models with fewer and fewer variables, provided the results of the Anova test suggested the simpler model was preferred. Ultimately, this led to us dropping `date_num` and `date_quarter`, while keeping: dose_per_mg, bulk_purchase, primary_reason, source
 
 #### Model Specification
 
