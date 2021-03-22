@@ -1,5 +1,5 @@
 ---
-title: "STA610 Case Study 1 Team 4 Report"
+title: \vspace{-1.5cm} "STA610 Case Study 1 Team 4 Report"
 author:
 - Cole Juracek (Programmer)
 - Lauren Palazzo (Writer)
@@ -10,6 +10,8 @@ output:
   pdf_document: default
   html_document:
     df_print: paged
+fontsize: 11pt
+geometry: margin=2cm
 ---
 
 ```{r setup, include=FALSE}
@@ -79,8 +81,8 @@ df$date_quarter <- as.numeric(substr(df$yq_pdate, 5, 5))
 ```
 
 ```{r}
-hist(df$date_num)
-knitr::kable(table(df$date_quarter))
+#hist(df$date_num)
+knitr::kable(table(df$date_quarter), col.names = c("Quarter","Freq"))
 ```
 
 ### Sources variable
@@ -198,7 +200,7 @@ We see that some states with small sample sizes have distributions of `log_price
 
 Viewing a similar plot for the regions of the USA, we do see some variability in price among regions, but it is not as pronounced as for the states.
 
-```{r, fig.align='center'}
+```{r, fig.align='center', fig.height = 2.5}
 ggplot(df, aes(x=reorder(USA_region, USA_region, length), y=log_ppm, fill=USA_region)) +
 geom_boxplot() +
 labs(title="log PPM by region", x="region",y="Log PPM")
@@ -206,19 +208,7 @@ labs(title="log PPM by region", x="region",y="Log PPM")
 
 ### City
 
-We find that there are many cities with a sample size of one, which makes `city` perhaps not the most natural choice for a grouping variable. Example visualizations shown here are for all cities in the states of Florida and California. 
-
-```{r, fig.align='center'}
-fl_lppmbycity <- ggplot(df[df$state=="Florida",], aes(x=log_ppm, y=reorder(city, city, length))) +
-geom_boxplot() +
-labs(title="log PPM by city (FL)", x="Log PPM",y="city")
-ca_lppmbycity <- ggplot(df[df$state=="California",], aes(x=reorder(city, city, length), y=log_ppm)) +
-geom_boxplot() +
-labs(title="log PPM by city (CA)", x="Log PPM",y="city")
-grid.arrange(fl_lppmbycity, ca_lppmbycity, ncol= 2)
-```
-
-We decided to focus on `state` as our primary candidate for a grouping variable moving forward. 
+We find that there are many cities with a sample size of one, which makes `city` perhaps not the most natural choice for a grouping variable (please see appendix). We decided to focus on `state` as our primary candidate for a grouping variable moving forward. 
 
 ## Exploratory data analysis for random slopes
 
@@ -276,39 +266,6 @@ ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Caro
   theme(axis.text.x = element_text(angle = 90))
 ```
 
-## More EDA: slope and intercept distributions for predictors by state
-
-To get a better sense of how state-level groups and slopes are distributed, we created the following intercepts for our coninuous variables:
-
-### Dose strength variable
-
-```{r fig.width=3}
-group_int_list <- NULL 
-group_slope_list <- NULL
-for(statej in unique(df$state)) {
-    m <- lm(data = df[df$state==statej, ], log_ppm ~ dose_per_mg)
-    group_int_list <- c(group_int_list, coef(m)[1])
-    group_slope_list <- c(group_slope_list, coef(m)[2])
-}
-hist(group_int_list)
-hist(group_slope_list)
-```
-
-### Continuous date variable
-
-```{r fig.width=3}
-group_int_list <- NULL 
-group_slope_list <- NULL
-for(statej in unique(df$state)) {
-    m <- lm(data = df[df$state==statej, ], log_ppm ~ date_num)
-    group_int_list <- c(group_int_list, coef(m)[1])
-    group_slope_list <- c(group_slope_list, coef(m)[2])
-}
-
-hist(group_int_list)
-hist(group_slope_list)
-```
-
 ## Model
 
 Per the research question of interest, we are interested in exploring factors related to price per mg of oxymorphone. We are also specifically asked to control for location and how drug price changes with it. Cities seemed to be too noisy to use as a location predictor. On the flip side, region did not seem to be associated with a significant change in drug prices. Therefore, state provides the best granularity of accounting for location in this instance.
@@ -319,20 +276,7 @@ This prompts a **mixed effects model**, where we instead model the state coeffic
 
 ### Model Selection
 
-Based off of the results of the EDA, we want to initially fit a model with the following variables:
-
-- source
-- dose_per_mg
-- bulk_purchase
-- Primary_Reason
-- date_num
-- date_quarter
-
-In terms of the research question, we would also like to group based on location. There are 3 options for this:
-
-- Region
-- State
-- City
+Based off of the results of the EDA, we want to initially fit a model with the following variables: source, dose_per_mg, bulk_purchase, Primary_Reason, date_num, and date_quarter. In terms of the research question, we would also like to group based on location. There are 3 options for this: region, state, or city.
 
 In order to test whether keeping a variable in the model is "worth it", we may perform a likelihood ratio test for nested models. For adding $k$ fixed effects, the LRT test statistic follows a $\chi^2(k)$ distribution, and for adding $k$ random effects, the LRT test statistic follows a 50-50 mixture of $\chi^2(k)$ and $\chi^2(k + 1)$ distribution. For non-nested models, we can use BIC as a rough indicator of which model is "better". BIC balances likelihood of model with how parsimonious it is.
 
@@ -383,22 +327,7 @@ drop_source <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_pur
 source_pval <- drop_source$`Pr(>Chisq)`[2]
 ```
 
-The outline is as follows:
-
-* Start with date_num, date_quarter, dose_per_mg, bulk_purchase, Primary_Reason, source
-* Perform a LRT between competing models with and without the date variable. Observe a p-value of `r round(date_num_pval, 3)` and fail to reject the null (simpler model). Drop `date_num` from the subsequent model tests
-* Perform a LRT between competing models with and without the quarter of the sale. Observe a p-value of `r round(quarter_pval, 3)` and fail to reject the null (simpler model). Drop `date_quarter` from the subsequent model tests
-* Perform a LRT between competing models with and without dose per mg. Observe a p-value of ~`r round(dose_pval, 3)` and reject the null (simpler model). Decide on model keeping `dose_per_mg`
-* Perform a LRT between competing models with and without the bulk purchase predictor. Observe a p-value of ~`r round(bulk_pval, 3)` and reject the null (simpler model). Decide on model keeping `bulk_purchase`
-* Perform a LRT between competing models with and without the primary reason predictor. Observe a p-value of `r round(reason_pval, 3)` and reject the null (simpler model). Decide on keeping `primary_reason` in the model
-* Perform a LRT between competing models with and without the source predictor. Observe a p-value of ~`r round(source_pval, 3)` and reject the null (simpler model). Decide on keeping `source` in the model 
-
-Thus these results suggest we want to drop `date_num` and `date_quarter`, while keeping
-
-* dose_per_mg
-* bulk_purchase
-* primary_reason
-* source
+Model selection is omitted for brevity (see code appendix for full demonstration). Essentially we compared nested models with fewer and fewer variables, provided the results of the Anova test suggested the simpler model was preferred. Ultimately, this led to us dropping `date_num` and `date_quarter`, while keeping: dose_per_mg, bulk_purchase, primary_reason, source
 
 #### Model Specification
 
@@ -446,15 +375,13 @@ coefs$p.z <- 2 * (1 - pnorm(abs(coefs$t.value)))
 knitr::kable(coefs, col.names = c("Estimate", "Std.Error", "t-value", "P-value"))
 ```
 
-* *dose_per_mg*: Controlling for other variables, for every one milligram increase of dosage, the price per mg of oxymorphone increases by a multiplicative effect of exp(-0.0151868) = 0.9849279, about a 1.51% reduction.
+*dose_per_mg*: Controlling for other variables, for every one milligram increase of dosage, the price per mg of oxymorphone increases by a multiplicative effect of exp(-0.0151868) = 0.9849279, about a 1.51% reduction.
 
-* *bulk_purchase* ("not bulk purchase" is the reference): Controlling for other variables, bulk purchase reduces the price per mg of oxymorphone by a multiplicative effect of exp(-0.1691121) = 0.8444142, about a 15.56% reduction.
+*bulk_purchase* ("not bulk purchase" is the reference): Controlling for other variables, bulk purchase reduces the price per mg of oxymorphone by a multiplicative effect of exp(-0.1691121) = 0.8444142, about a 15.56% reduction.
 
-* *source* (“Source: Unknown” is the reference, other levels ommitted for brevity):
-    + Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.1339468) = 1.143332, about a 14.33% increase than the price per mg of oxymorphone for people with unknown drug source.
+*source* (“Source: Unknown” is the reference, other levels ommitted for brevity): Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.1339468) = 1.143332, about a 14.33% increase than the price per mg of oxymorphone for people with unknown drug source.
   
-* *Primary Reason* ("Blank" is the reference, other levels omitted for brevity):
-    + Controlling for other variables, purchasing oxymorphone with primary reason Self-treat tends to increase the price per mg by a multiplicative effect of exp(0.1034974) = 1.109043, about a 10.9% increase than the price per mg of oxymorphone for people with Blank primary reason.
+*Primary Reason* ("Blank" is the reference, other levels omitted for brevity): Controlling for other variables, purchasing oxymorphone with primary reason Self-treat tends to increase the price per mg by a multiplicative effect of exp(0.1034974) = 1.109043, about a 10.9% increase than the price per mg of oxymorphone for people with Blank primary reason.
 
 #### Random Effects
 ```{r}
@@ -486,4 +413,39 @@ From the result of the random effects, we can see that the random intercept for 
 
 ## Appendix
 ```{r, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+# Example visualization shown here are for all cities in the state of Florida. 
+
+ggplot(df[df$state=="Florida",], aes(x=log_ppm, y=reorder(city, city, length))) +
+geom_boxplot() +
+labs(title="log PPM by city (FL)", x="Log PPM",y="city")
+
+# More EDA: slope and intercept distributions for predictors by state
+
+# To get a better sense of how state-level groups and slopes are distributed, we created the following intercepts for our coninuous variables:
+
+### Dose strength variable
+
+group_int_list <- NULL 
+group_slope_list <- NULL
+for(statej in unique(df$state)) {
+    m <- lm(data = df[df$state==statej, ], log_ppm ~ dose_per_mg)
+    group_int_list <- c(group_int_list, coef(m)[1])
+    group_slope_list <- c(group_slope_list, coef(m)[2])
+}
+hist(group_int_list)
+hist(group_slope_list)
+
+### Continuous date variable
+
+group_int_list <- NULL 
+group_slope_list <- NULL
+for(statej in unique(df$state)) {
+    m <- lm(data = df[df$state==statej, ], log_ppm ~ date_num)
+    group_int_list <- c(group_int_list, coef(m)[1])
+    group_slope_list <- c(group_slope_list, coef(m)[2])
+}
+
+hist(group_int_list)
+hist(group_slope_list)
+
 ```
