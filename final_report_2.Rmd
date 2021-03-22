@@ -103,7 +103,9 @@ source_df_2 <- data.frame(table(df$source))
 # drop unknowns
 df <- df %>% filter(df$source != "Unknown")
 df$source <- droplevels(df$source)
-knitr::kable(table(df$source), col.names = c("Level", "Freq"))
+knitr::kable(table(df$source), 
+             col.names = c("Level", "Freq"),
+             caption = "Frequency Table for Source")
 ```
 
 ### Bulk purchase variable
@@ -138,7 +140,9 @@ df$Primary_Reason <- recode_factor(df$Primary_Reason, "Blank" = "Blank",
                            .default = "Other or unknown")
 reason_df_2 <- data.frame(table(df$Primary_Reason))
 #print(reason_df)
-knitr::kable(reason_df_2, col.names = c("Level", "Freq"))
+knitr::kable(reason_df_2, 
+             col.names = c("Level", "Freq"),
+             caption = "Frequency Table for Primary Reason")
 ```
 
 ### Drug strength variable
@@ -348,6 +352,7 @@ dotplot(ranef(mod_final, condVar=TRUE))$state
 ```
 From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Arizona is the lowest and this intercept is also significant.
 
+\newpage 
 # Appendix
 
 ## Code 
@@ -360,13 +365,17 @@ From the result of the random effects, we can see that the random intercept for 
 
 ### Date variable  
 ```{r}
-hist(df$date_num)
-knitr::kable(table(df$date_quarter))
+ggplot(df, aes(x=date_num)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 50)+
+ geom_density(alpha=.2, fill="blue") 
+knitr::kable(table(df$date_quarter), col.names = c("Date Quarter", "Freq"))
 ```
 
 ### Dose strength variable 
 ```{r}
-hist(df$dose_per_mg)
+ggplot(df, aes(x=dose_per_mg)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 50)+
+ geom_density(alpha=.2, fill="red") 
 ```
 
 ### Region box plots
@@ -427,7 +436,7 @@ ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Caro
 
 
 ### City visualization for FL
-```{r}
+```{r, fig.height=6, fig.align='center'}
 ggplot(df[df$state=="Florida",], aes(x=log_ppm, y=reorder(city, city, length))) +
 geom_boxplot() +
 labs(title="log PPM by city (FL)", x="Log PPM",y="city")
