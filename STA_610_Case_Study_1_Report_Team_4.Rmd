@@ -31,6 +31,8 @@ df <- streetrx %>% filter(api_temp == "oxymorphone", !is.na(ppm))
 
 This study is an exploration of the relationship between the sale price per milligram of diverted pharmaceutical substances and other factors related to the sale, as reflected in self-reported data from the website StreetRx. StreetRx maintains a partnership with the Researched Abuse, Diversion, and Addiction-Related Surveillance System (RADARS), which aims for these data to inform public health measures such as health policy related to illicit drugs. 
 
+Our drug of interest in this study is oxymorphone. Oxymorphone is used to relieve moderate to severe pain in people whose pain is not controlled with other medications, and may be habit-forming with prolonged use. Our aim is to investigate factors related to the price per mg of oxymorphone, accounting for potential clustering by location and exploring heterogeneity in pricing by location.
+
 Among the data available to us are location data pertaining to the city, state, and United States region of the sale. These variables present a natural grouping structure for the price data, which suggest that we employ a hierarchical model in our analysis. The benefits of a hierarchical model include the ability to "borrow information" from the data set as a whole to stabilize estimates of price for groups (e.g., states) with relatively small sample size, and to establish a estimated distribution of how price varies with respect to groups, which would in theory allow generalization to new groups not included in the original analysis. 
 
 # Exploratory data analysis and data cleaning
