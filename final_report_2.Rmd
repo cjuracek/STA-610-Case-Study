@@ -13,7 +13,7 @@ geometry: margin=2cm
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, cache=TRUE, fig.height = 3)
+knitr::opts_chunk$set(echo = FALSE, cache=TRUE, fig.height = 3, tidy.opts=list(width.cutoff=60), tidy=TRUE)
 ```
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
@@ -91,14 +91,14 @@ source_df <- data.frame(table(df$source))
 levels(df$source)[1] <- "Blank"
 source_df <- data.frame(table(df$source))
 df$source <- recode_factor(df$source, "Blank" = "Blank",
-                           "Internet" = "Internet",
-                           "Internet Pharmacy" = "Internet Pharmacy",
-                           "Personal" = "Personal",
-                           "Heard it" = "Heard it",
-                           "Idk" = "Unknown",
-                           "w" = "Unknown",
-                           "STREET PRICE" = "Heard it",
-                           .default = "Internet") # everything else is a URL
+                    "Internet" = "Internet",
+                    "Internet Pharmacy" = "Internet Pharmacy",
+                    "Personal" = "Personal",
+                    "Heard it" = "Heard it",
+                    "Idk" = "Unknown",
+                    "w" = "Unknown",
+                    "STREET PRICE" = "Heard it",
+                    .default = "Internet") # everything else is a URL
 source_df_2 <- data.frame(table(df$source))
 # drop unknowns
 df <- df %>% filter(df$source != "Unknown")
@@ -226,9 +226,12 @@ First, let's decide what to group on for region:
 
 ```{r}
 # Fit 3 models grouping on different location specificity
-mod_s <- lmer(data=df, log_ppm ~ (1 |state) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
-mod_c <- lmer(data=df, log_ppm ~ (1 |city) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
-mod_r <- lmer(data=df, log_ppm ~ (1 |USA_region) + date_num + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+mod_s <- lmer(data=df, log_ppm ~ (1 |state) + date_num + date_quarter + 
+                  dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+mod_c <- lmer(data=df, log_ppm ~ (1 |city) + date_num + date_quarter + 
+                  dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+mod_r <- lmer(data=df, log_ppm ~ (1 |USA_region) + date_num + date_quarter +
+                  dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
 ```
 
 ```{r}
@@ -244,28 +247,43 @@ Now let's investigate dropping various fixed effects and see results of our hypo
 ```{r}
 # Test date_num
 drop_date_num <- anova(mod_s,
-      lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+      lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + 
+               bulk_purchase + Primary_Reason + source, REML=F))
 date_num_pval <- drop_date_num$`Pr(>Chisq)`[2]
 # Test date_quarter
-drop_quarter <- anova(lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + 
-                    bulk_purchase + Primary_Reason + source, REML=F),
-      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F))
+drop_quarter <- anova(lmer(data=df, log_ppm ~ (1 |state) + 
+                        date_quarter + dose_per_mg +
+                        bulk_purchase + Primary_Reason + source, REML=F),
+                lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
+                         bulk_purchase + Primary_Reason + source, REML=F))
 quarter_pval <- drop_quarter$`Pr(>Chisq)`[2]
+
 # Test dose_per_mg
-drop_dose <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
-      lmer(data=df, log_ppm ~ (1 |state) + bulk_purchase + Primary_Reason + source, REML=F))
+drop_dose <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
+                        bulk_purchase + Primary_Reason + source, REML=F),
+                   lmer(data=df, log_ppm ~ (1 |state) + bulk_purchase 
+                        + Primary_Reason + source, REML=F))
 dose_pval <- drop_dose$`Pr(>Chisq)`[2]
+
 # Test bulk purchase
-drop_bulk <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
-      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + Primary_Reason + source, REML=F))
+drop_bulk <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
+                        bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
+               Primary_Reason + source, REML=F))
 bulk_pval <- drop_bulk$`Pr(>Chisq)`[2]
+
 # Test primary reason
-drop_reason <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
-      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + source, REML=F))
+drop_reason <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
+                              bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
+               bulk_purchase + source, REML=F))
 reason_pval <- drop_reason$`Pr(>Chisq)`[2]
+
 # Test source
-drop_source <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F),
-      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + Primary_Reason, REML=F))
+drop_source <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
+                              bulk_purchase + Primary_Reason + source, REML=F),
+      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
+               bulk_purchase + Primary_Reason, REML=F))
 source_pval <- drop_source$`Pr(>Chisq)`[2]
 ```
 
