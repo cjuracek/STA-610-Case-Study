@@ -276,20 +276,7 @@ This prompts a **mixed effects model**, where we instead model the state coeffic
 
 ### Model Selection
 
-Based off of the results of the EDA, we want to initially fit a model with the following variables:
-
-- source
-- dose_per_mg
-- bulk_purchase
-- Primary_Reason
-- date_num
-- date_quarter
-
-In terms of the research question, we would also like to group based on location. There are 3 options for this:
-
-- Region
-- State
-- City
+Based off of the results of the EDA, we want to initially fit a model with the following variables: source, dose_per_mg, bulk_purchase, Primary_Reason, date_num, and date_quarter. In terms of the research question, we would also like to group based on location. There are 3 options for this: region, state, or city.
 
 In order to test whether keeping a variable in the model is "worth it", we may perform a likelihood ratio test for nested models. For adding $k$ fixed effects, the LRT test statistic follows a $\chi^2(k)$ distribution, and for adding $k$ random effects, the LRT test statistic follows a 50-50 mixture of $\chi^2(k)$ and $\chi^2(k + 1)$ distribution. For non-nested models, we can use BIC as a rough indicator of which model is "better". BIC balances likelihood of model with how parsimonious it is.
 
@@ -350,12 +337,7 @@ The outline is as follows:
 * Perform a LRT between competing models with and without the primary reason predictor. Observe a p-value of `r round(reason_pval, 3)` and reject the null (simpler model). Decide on keeping `primary_reason` in the model
 * Perform a LRT between competing models with and without the source predictor. Observe a p-value of ~`r round(source_pval, 3)` and reject the null (simpler model). Decide on keeping `source` in the model 
 
-Thus these results suggest we want to drop `date_num` and `date_quarter`, while keeping
-
-* dose_per_mg
-* bulk_purchase
-* primary_reason
-* source
+Thus these results suggest we want to drop `date_num` and `date_quarter`, while keeping: dose_per_mg, bulk_purchase, primary_reason, source
 
 #### Model Specification
 
@@ -403,15 +385,13 @@ coefs$p.z <- 2 * (1 - pnorm(abs(coefs$t.value)))
 knitr::kable(coefs, col.names = c("Estimate", "Std.Error", "t-value", "P-value"))
 ```
 
-* *dose_per_mg*: Controlling for other variables, for every one milligram increase of dosage, the price per mg of oxymorphone increases by a multiplicative effect of exp(-0.0151868) = 0.9849279, about a 1.51% reduction.
+*dose_per_mg*: Controlling for other variables, for every one milligram increase of dosage, the price per mg of oxymorphone increases by a multiplicative effect of exp(-0.0151868) = 0.9849279, about a 1.51% reduction.
 
-* *bulk_purchase* ("not bulk purchase" is the reference): Controlling for other variables, bulk purchase reduces the price per mg of oxymorphone by a multiplicative effect of exp(-0.1691121) = 0.8444142, about a 15.56% reduction.
+*bulk_purchase* ("not bulk purchase" is the reference): Controlling for other variables, bulk purchase reduces the price per mg of oxymorphone by a multiplicative effect of exp(-0.1691121) = 0.8444142, about a 15.56% reduction.
 
-* *source* (“Source: Unknown” is the reference, other levels ommitted for brevity):
-    + Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.1339468) = 1.143332, about a 14.33% increase than the price per mg of oxymorphone for people with unknown drug source.
+*source* (“Source: Unknown” is the reference, other levels ommitted for brevity): Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.1339468) = 1.143332, about a 14.33% increase than the price per mg of oxymorphone for people with unknown drug source.
   
-* *Primary Reason* ("Blank" is the reference, other levels omitted for brevity):
-    + Controlling for other variables, purchasing oxymorphone with primary reason Self-treat tends to increase the price per mg by a multiplicative effect of exp(0.1034974) = 1.109043, about a 10.9% increase than the price per mg of oxymorphone for people with Blank primary reason.
+*Primary Reason* ("Blank" is the reference, other levels omitted for brevity): Controlling for other variables, purchasing oxymorphone with primary reason Self-treat tends to increase the price per mg by a multiplicative effect of exp(0.1034974) = 1.109043, about a 10.9% increase than the price per mg of oxymorphone for people with Blank primary reason.
 
 #### Random Effects
 ```{r}
