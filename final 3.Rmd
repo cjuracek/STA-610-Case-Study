@@ -1,5 +1,5 @@
 ---
-title: \vspace{-1.5cm} \textbf{STA610 Case Study 1 Team 4 Report}
+title: "\vspace{-1.5cm} \textbf{STA610 Case Study 1 Team 4 Report}"
 author:
 - Cole Juracek (Programmer)
 - Lauren Palazzo (Writer)
@@ -7,18 +7,22 @@ author:
 - Fan Zhu (Presenter)
 date: "`r Sys.Date()`"
 output:
+  html_document:
+    df_print: paged
   pdf_document: default
 fontsize: 11pt
 geometry: margin=2cm
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, cache=TRUE, fig.height = 3, tidy.opts=list(width.cutoff=60), tidy=TRUE)
+knitr::opts_chunk$set(echo = FALSE, cache=TRUE, fig.height = 3)
 ```
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(pacman)
-pacman::p_load(tidyverse, lme4, gridExtra, grid, ggplot2, lattice, redres, stringr, influence.ME, knitr)
+library(merTools)
+pacman::p_load(tidyverse, lme4, gridExtra, grid, ggplot2, lattice, redres, stringr,
+               influence.ME, knitr)
 # devtools::install_github("goodekat/redres")
 ```
 
@@ -34,6 +38,7 @@ This study is an exploration of the relationship between the sale price per mill
 Our drug of interest in this study is oxymorphone. Oxymorphone is used to relieve moderate to severe pain in people whose pain is not controlled with other medications, and may be habit-forming with prolonged use. Our aim is to investigate factors related to the price per mg of oxymorphone, accounting for potential clustering by location and exploring heterogeneity in pricing by location.
 
 Among the data available to us are location data pertaining to the city, state, and United States region of the sale. These variables present a natural grouping structure for the price data, which suggest that we employ a hierarchical model in our analysis. The benefits of a hierarchical model include the ability to "borrow information" from the data set as a whole to stabilize estimates of price for groups (e.g., states) with relatively small sample size, and to establish a estimated distribution of how price varies with respect to groups, which would in theory allow generalization to new groups not included in the original analysis. 
+
 # Exploratory data analysis and data cleaning
 
 ## Data cleaning
@@ -91,31 +96,24 @@ source_df <- data.frame(table(df$source))
 levels(df$source)[1] <- "Blank"
 source_df <- data.frame(table(df$source))
 df$source <- recode_factor(df$source, "Blank" = "Blank",
-                    "Internet" = "Internet",
-                    "Internet Pharmacy" = "Internet Pharmacy",
-                    "Personal" = "Personal",
-                    "Heard it" = "Heard it",
-                    "Idk" = "Unknown",
-                    "w" = "Unknown",
-                    "STREET PRICE" = "Heard it",
-                    .default = "Internet") # everything else is a URL
+                           "Internet" = "Internet",
+                           "Internet Pharmacy" = "Internet Pharmacy",
+                           "Personal" = "Personal",
+                           "Heard it" = "Heard it",
+                           "Idk" = "Unknown",
+                           "w" = "Unknown",
+                           "STREET PRICE" = "Heard it",
+                           .default = "Internet") # everything else is a URL
 source_df_2 <- data.frame(table(df$source))
 # drop unknowns
 df <- df %>% filter(df$source != "Unknown")
 df$source <- droplevels(df$source)
-knitr::kable(table(df$source), 
-             col.names = c("Level", "Freq"),
-             caption = "Frequency Table for Source")
+knitr::kable(table(df$source), col.names = c("Level", "Freq"), caption = "Frequency Table of Variable source")
 ```
 
 ### Bulk purchase variable
 
 Our visualization of the bulk purchase variable indicates nothing unexpected that calls for data cleaning. 
-
-```{r}
-#table(df$bulk_purchase, useNA = "always")
-# looks fine
-```
 
 ### Purchase reason variable
 
@@ -140,9 +138,7 @@ df$Primary_Reason <- recode_factor(df$Primary_Reason, "Blank" = "Blank",
                            .default = "Other or unknown")
 reason_df_2 <- data.frame(table(df$Primary_Reason))
 #print(reason_df)
-knitr::kable(reason_df_2, 
-             col.names = c("Level", "Freq"),
-             caption = "Frequency Table for Primary Reason")
+knitr::kable(reason_df_2, col.names = c("Level", "Freq"), caption = "Frequency Table of Variable Primary_Reason")
 ```
 
 ### Drug strength variable
@@ -230,12 +226,12 @@ First, let's decide what to group on for region:
 
 ```{r}
 # Fit 3 models grouping on different location specificity
-mod_s <- lmer(data=df, log_ppm ~ (1 |state) + date_num + date_quarter + 
-                  dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
-mod_c <- lmer(data=df, log_ppm ~ (1 |city) + date_num + date_quarter + 
-                  dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
-mod_r <- lmer(data=df, log_ppm ~ (1 |USA_region) + date_num + date_quarter +
-                  dose_per_mg + bulk_purchase + Primary_Reason + source, REML=F)
+mod_s <- lmer(data=df, log_ppm ~ (1 |state) + date_num + date_quarter + dose_per_mg +
+                bulk_purchase + Primary_Reason + source, REML=F)
+mod_c <- lmer(data=df, log_ppm ~ (1 |city) + date_num + date_quarter + dose_per_mg +
+                bulk_purchase + Primary_Reason + source, REML=F)
+mod_r <- lmer(data=df, log_ppm ~ (1 |USA_region) + date_num + date_quarter + dose_per_mg +
+                bulk_purchase + Primary_Reason + source, REML=F)
 ```
 
 ```{r}
@@ -251,47 +247,42 @@ Now let's investigate dropping various fixed effects and see results of our hypo
 ```{r}
 # Test date_num
 drop_date_num <- anova(mod_s,
-      lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + 
-               bulk_purchase + Primary_Reason + source, REML=F))
+      lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + bulk_purchase +
+             Primary_Reason + source, REML=F))
 date_num_pval <- drop_date_num$`Pr(>Chisq)`[2]
 # Test date_quarter
-drop_quarter <- anova(lmer(data=df, log_ppm ~ (1 |state) + 
-                        date_quarter + dose_per_mg +
-                        bulk_purchase + Primary_Reason + source, REML=F),
-                lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
-                         bulk_purchase + Primary_Reason + source, REML=F))
+drop_quarter <- anova(lmer(data=df, log_ppm ~ (1 |state) + date_quarter + dose_per_mg + 
+                    bulk_purchase + Primary_Reason + source, REML=F),
+                    lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase +
+                           Primary_Reason + source, REML=F))
 quarter_pval <- drop_quarter$`Pr(>Chisq)`[2]
-
 # Test dose_per_mg
-drop_dose <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
-                        bulk_purchase + Primary_Reason + source, REML=F),
-                   lmer(data=df, log_ppm ~ (1 |state) + bulk_purchase 
-                        + Primary_Reason + source, REML=F))
+drop_dose <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase 
+                        + Primary_Reason + source, REML=F),
+                   lmer(data=df, log_ppm ~ (1 |state) + bulk_purchase + Primary_Reason 
+                        + source, REML=F))
 dose_pval <- drop_dose$`Pr(>Chisq)`[2]
-
 # Test bulk purchase
-drop_bulk <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
-                        bulk_purchase + Primary_Reason + source, REML=F),
-      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
-               Primary_Reason + source, REML=F))
+drop_bulk <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase 
+                        + Primary_Reason + source, REML=F),
+                   lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + Primary_Reason 
+                        + source, REML=F))
 bulk_pval <- drop_bulk$`Pr(>Chisq)`[2]
-
 # Test primary reason
-drop_reason <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
-                              bulk_purchase + Primary_Reason + source, REML=F),
-      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
-               bulk_purchase + source, REML=F))
+drop_reason <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase 
+                          + Primary_Reason + source, REML=F),
+                     lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase 
+                          + source, REML=F))
 reason_pval <- drop_reason$`Pr(>Chisq)`[2]
-
 # Test source
-drop_source <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
-                              bulk_purchase + Primary_Reason + source, REML=F),
-      lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + 
-               bulk_purchase + Primary_Reason, REML=F))
+drop_source <- anova(lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase 
+                          + Primary_Reason + source, REML=F),
+                     lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase 
+                          + Primary_Reason, REML=F))
 source_pval <- drop_source$`Pr(>Chisq)`[2]
 ```
 
-Model selection is omitted for brevity (see code appendix for full demonstration). Essentially we compared nested models with fewer and fewer variables, provided the results of the Anova test suggested the simpler model was preferred. Ultimately, this led to us dropping `date_num` and `date_quarter`, while keeping: dose_per_mg, bulk_purchase, primary_reason, source
+Model selection is omitted for brevity (see code appendix for full demonstration). Essentially we compared nested models with fewer and fewer variables, provided the results of the Anova test suggested the simpler model was preferred. Ultimately, this led to us dropping `date_num` and `date_quarter`, while keeping: dose_per_mg, bulk_purchase, primary_reason, source.
 
 #### Model Specification
 
@@ -315,36 +306,42 @@ mod_final <- lmer(data=df, log_ppm ~ (1 |state) + dose_per_mg + bulk_purchase + 
 
 #### Model Diagnostics
 ```{r, fig.align='center', warning=FALSE, message=FALSE, error=FALSE}
-# resqq <- plot_resqq(mod1)
-# ranefci <- plot_ranef(mod1)
-# grid.arrange(resqq, ranefci, ncol = 2)
+resqq <- plot_resqq(mod_final)
+ranefci <- plot_ranef(mod_final)
+grid.arrange(resqq, ranefci, ncol = 2)
 ```
 
-Model diagnostics discussions here.
+From the normal quantile plot of the raw conditional residuals, although there are many residuals out of bounds, these residuals are not too far away from the bounds. Thus, we can still accept the raw conditional residuals are normally distributed. 
+From the normal quantile plot on random effect state, there are only two outliers. Thus, we can accept random effect of state is normally distributed.
 
 ## Results
+
 #### Fixed Effects
+
 ```{r, message=FALSE}
-#knitr::kable(fixef(mod1))
-#confint(mod1)[3:11,]
-# extract coefficients
 coefs <- data.frame(coef(summary(mod_final)))
 # use normal distribution to approximate p-value
 coefs$p.z <- 2 * (1 - pnorm(abs(coefs$t.value)))
 knitr::kable(coefs, col.names = c("Estimate", "Std.Error", "t-value", "P-value"))
 ```
 
-*dose_per_mg*: Controlling for other variables, for every one milligram increase of dosage, the price per mg of oxymorphone increases by a multiplicative effect of exp(-0.0151868) = 0.9849279, about a 1.51% reduction.
+* *dose_per_mg*: Controlling for other variables, for every one milligram increase of dosage, the price per mg of oxymorphone reduces by a multiplicative effect of exp(-0.0152224) = 0.9848929, about a 1.51% reduction.
 
-*bulk_purchase* ("not bulk purchase" is the reference): Controlling for other variables, bulk purchase reduces the price per mg of oxymorphone by a multiplicative effect of exp(-0.1691121) = 0.8444142, about a 15.56% reduction.
+* *bulk_purchase* ("not bulk purchase" is the reference): Controlling for other variables, bulk purchase reduces the price per mg of oxymorphone by a multiplicative effect of exp(-0.1716889) = 0.8422412, about a 15.76% reduction than the price per mg of oxymorphone for people without bulk purchase.
 
-*source* (“Source: Unknown” is the reference, other levels ommitted for brevity): Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.1339468) = 1.143332, about a 14.33% increase than the price per mg of oxymorphone for people with unknown drug source.
+* *source* (“Source: Unknown” is the reference, other levels ommitted for brevity):
+    + Controlling for other variables, purchasing oxymorphone with Internet source tends to increase the price per mg by a multiplicative effect of exp(0.1361942) = 1.145904, about a 14.59% increase than the price per mg of oxymorphone for people with unknown drug source.
   
-*Primary Reason* ("Blank" is the reference, other levels omitted for brevity): Controlling for other variables, purchasing oxymorphone with primary reason Self-treat tends to increase the price per mg by a multiplicative effect of exp(0.1034974) = 1.109043, about a 10.9% increase than the price per mg of oxymorphone for people with Blank primary reason.
+* *Primary Reason* ("Blank" is the reference, other levels omitted for brevity):
+    + Controlling for other variables, purchasing oxymorphone with primary reason Self-treat tends to increase the price per mg by a multiplicative effect of exp(0.1042256) = 1.109851, about a 10.99% increase than the price per mg of oxymorphone for people with Blank primary reason.
 
 #### Random Effects
+
+```{r, include=FALSE}
+VarCorr(mod_final)
+```
+
 ```{r}
-#VarCorr(mod_final)
 Variance <- c(0.02292, 0.50060)
 Std.Dev <- c(0.15140 , 0.70753)
 Groups <- c("state (Intercept)", "Residual")
@@ -358,7 +355,6 @@ library(sjstats)
 icc(mod_final)
 ```
 
-
 ```{r}
 ICC <- 0.044
 knitr::kable(ICC, col.names = "Intraclass Correlation")
@@ -366,11 +362,15 @@ knitr::kable(ICC, col.names = "Intraclass Correlation")
 Intraclass correlation is 0.044, which means values are not very similar from the same state.
 
 ```{r, fig.align='center', fig.height=8}
-dotplot(ranef(mod_final, condVar=TRUE))$state
+plotREsim(REsim(mod_final,n.sims=100),stat='median',sd=TRUE, labs = TRUE)
 ```
 From the result of the random effects, we can see that the random intercept for Tennessee is the highest and it is significantly different from zero. The random intercept for Arizona is the lowest and this intercept is also significant.
 
-\newpage 
+## Appendix
+
+```{r, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
+
 # Appendix
 
 ## Code 
@@ -383,36 +383,34 @@ From the result of the random effects, we can see that the random intercept for 
 
 ### Date variable  
 ```{r}
-ggplot(df, aes(x=date_num)) + 
- geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 50)+
- geom_density(alpha=.2, fill="blue") 
-knitr::kable(table(df$date_quarter), col.names = c("Date Quarter", "Freq"))
+hist(df$date_num, xlab = "data_num", main = "Histogram of date_num")
+knitr::kable(table(df$date_quarter), caption = "Frequency Table of Quarter in date_num")
 ```
 
 ### Dose strength variable 
 ```{r}
-ggplot(df, aes(x=dose_per_mg)) + 
- geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 50)+
- geom_density(alpha=.2, fill="red") 
+hist(df$dose_per_mg, xlab = "does_per_mg", main = "Histogram of dose_per_mg")
 ```
 
 ### Region box plots
 ```{r}
 ggplot(df, aes(x=reorder(USA_region, USA_region, length), y=log_ppm, fill=USA_region)) +
-geom_boxplot() +
-labs(title="log PPM by region", x="region",y="Log PPM")
+  geom_boxplot() +
+  labs(title="log PPM by region", x="region",y="Log PPM")
 ```
 
 ### dose_per_mg
 ```{r, fig.align='center'}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = dose_per_mg, y = log_ppm)) + 
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",],
+       aes(x = dose_per_mg, y = log_ppm)) + 
   geom_point() +
   facet_grid(~ state)
 ```
 
 ### date_num
 ```{r, fig.align='center'}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_num, y = log_ppm)) + 
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",],
+       aes(x = date_num, y = log_ppm)) + 
   geom_point() +
   facet_grid(~ state)
 ```
@@ -430,14 +428,16 @@ ggplot(data = df %>% filter(state %in% states), aes(x = bulk_purchase, y = log_p
 
 ### date_quarter
 ```{r}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = date_quarter, y = log_ppm, group = date_quarter)) + 
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",],
+       aes(x = date_quarter, y = log_ppm, group = date_quarter)) + 
   geom_boxplot() +
   facet_grid(~ state)
 ```
 
 ### Primary_Reason
 ```{r}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = Primary_Reason, y = log_ppm, group = Primary_Reason)) + 
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",],
+       aes(x = Primary_Reason, y = log_ppm, group = Primary_Reason)) + 
   geom_boxplot() +
   facet_grid(~ state) +
   theme(axis.text.x = element_text(angle = 90))
@@ -445,19 +445,19 @@ ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Caro
 
 ### source
 ```{r}
-ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",], aes(x = source, y = log_ppm, group = source)) + 
+ggplot(data = df[df$state=="Florida" | df$state=="Texas" | df$state=="North Carolina",],
+       aes(x = source, y = log_ppm, group = source)) + 
   geom_boxplot() +
   facet_grid(~ state) + 
   theme(axis.text.x = element_text(angle = 90))
 ```
 
 
-
 ### City visualization for FL
-```{r, fig.height=6, fig.align='center'}
+```{r, fig.height=10}
 ggplot(df[df$state=="Florida",], aes(x=log_ppm, y=reorder(city, city, length))) +
-geom_boxplot() +
-labs(title="log PPM by city (FL)", x="Log PPM",y="city")
+  geom_boxplot() +
+  labs(title="log PPM by city (FL)", x="Log PPM",y="city")
 ```
 
 
@@ -474,6 +474,7 @@ for(statej in unique(df$state)) {
     group_int_list <- c(group_int_list, coef(m)[1])
     group_slope_list <- c(group_slope_list, coef(m)[2])
 }
+par(mfrow=c(1,1))
 hist(group_int_list)
 hist(group_slope_list)
 
