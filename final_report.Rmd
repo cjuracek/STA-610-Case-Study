@@ -79,8 +79,8 @@ df$date_quarter <- as.numeric(substr(df$yq_pdate, 5, 5))
 ```
 
 ```{r}
-hist(df$date_num)
-knitr::kable(table(df$date_quarter))
+#hist(df$date_num)
+knitr::kable(table(df$date_quarter), col.names = c("Quarter","Freq"))
 ```
 
 ### Sources variable
@@ -198,7 +198,7 @@ We see that some states with small sample sizes have distributions of `log_price
 
 Viewing a similar plot for the regions of the USA, we do see some variability in price among regions, but it is not as pronounced as for the states.
 
-```{r, fig.align='center'}
+```{r, fig.align='center', fig.height = 2.5}
 ggplot(df, aes(x=reorder(USA_region, USA_region, length), y=log_ppm, fill=USA_region)) +
 geom_boxplot() +
 labs(title="log PPM by region", x="region",y="Log PPM")
